@@ -44,7 +44,7 @@ class LinkFixerBot(
         val chatIdL = message.chatId
         val chatId = chatIdL.toString()
         val text = message.text
-        if (message.replyToMessage != null && message.from.id == 123616664L) {
+        if (message.replyToMessage != null && message.chatId == 123616664L) {
             handleReplyToForwardedMessage(message);
             return
         }

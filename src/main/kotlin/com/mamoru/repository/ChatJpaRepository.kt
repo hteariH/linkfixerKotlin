@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository
 
 @Repository
 @EnableJpaRepositories
-public interface ChatJpaRepository : JpaRepository<ChatSettings, Long> {
+interface ChatJpaRepository : JpaRepository<ChatSettings, Long> {
     fun findByChatId(chatId: Long): ChatSettings?
 }
 
