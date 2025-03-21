@@ -97,8 +97,10 @@ class ScheduledMessageService(
 
         logger.info("Sending scheduled message to ${chats.size} chats. Days until target: $daysUntilTarget")
         for (chat in chatsP) {
-            linkFixerBot.sendMessageToChat(chat.chatId, formattedMessage)
-            logger.info("Sent scheduled message to chat ${chat.chatId}")
+            if (chat.sendCounterUntilWin) {
+                linkFixerBot.sendMessageToChat(chat.chatId, formattedMessage)
+                logger.info("Sent scheduled message to chat ${chat.chatId}")
+            }
         }
 
 
