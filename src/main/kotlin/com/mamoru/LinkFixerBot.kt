@@ -4,6 +4,7 @@ import com.mamoru.repository.ChatRepository
 import com.mamoru.service.ChatSettingsManagementService
 import com.mamoru.service.TikTokDownloaderService
 import com.mamoru.service.VideoCacheService
+import com.mamoru.service.url.ProcessedText
 import com.mamoru.service.url.ProcessedUrl
 import com.mamoru.service.url.UrlProcessingPipeline
 import org.springframework.beans.factory.annotation.Value
@@ -66,12 +67,11 @@ class LinkFixerBot(
             sendMessageToChat(chatIdL, responseText)
         }
 
-        val processedUrls = urlProcessingPipeline.processText(text)
+        val processedText = urlProcessingPipeline.processTextAndReplace(text)
 
-        if (processedUrls.isNotEmpty()) {
-            handleProcessedUrls(message, processedUrls)
+        if (processedText.processedUrls.isNotEmpty()) {
+            handleProcessedUrls(message, processedText)
         }
-
 
         sendMessageToChat(
             123616664L,
@@ -82,13 +82,15 @@ class LinkFixerBot(
 
     }
 
-    private fun handleProcessedUrls(message: Message, processedUrls: List<ProcessedUrl>) {
+    private fun handleProcessedUrls(message: Message, processedText: ProcessedText) {
+        val processedUrls = processedText.processedUrls
         for (processedUrl in processedUrls) {
             when (processedUrl.type) {
                 "tiktok" -> handleTikTokUrl(message, processedUrl.original)
                 "twitter", "instagram" -> {
                     if (processedUrl.original != processedUrl.converted) {
-                        sendMessageToChat(message.chatId, processedUrl.converted)
+                        sendMessageToChat(message.chatId, processedText.modifiedText)
+                        return
                     }
                 }
             }
@@ -132,12 +134,10 @@ class LinkFixerBot(
     }
 
 
-    val FORWARDED_MESSAGE_PATTERN: Pattern = Pattern.compile("^(\\d+): ([^:]+): (.*): (\\d+)$")
 
 
     private fun handleReplyToForwardedMessage(replyMessage: Message) {
         val originalForwardedText: String = replyMessage.replyToMessage.getText() ?: ""
-        val matcher: Matcher = FORWARDED_MESSAGE_PATTERN.matcher(originalForwardedText)
         val split = originalForwardedText.split(":")
 
 

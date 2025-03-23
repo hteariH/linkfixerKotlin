@@ -8,6 +8,13 @@ data class ProcessedUrl(
     val type: String
 )
 
+data class ProcessedText(
+    val originalText: String,
+    val modifiedText: String,
+    val processedUrls: List<ProcessedUrl>
+)
+
+
 @Service
 class UrlProcessingPipeline(private val urlHandlers: List<UrlHandler>) {
     
@@ -22,7 +29,26 @@ class UrlProcessingPipeline(private val urlHandlers: List<UrlHandler>) {
             }
         }
     }
-    
+
+    fun processTextAndReplace(text: String): ProcessedText {
+        val processedUrls = processText(text)
+        var modifiedText = text
+
+        // Replace all URLs in the original text with their converted versions
+        processedUrls.forEach { processed ->
+            if (processed.original != processed.converted) {
+                modifiedText = modifiedText.replace(processed.original, processed.converted)
+            }
+        }
+
+        return ProcessedText(
+            originalText = text,
+            modifiedText = modifiedText,
+            processedUrls = processedUrls
+        )
+    }
+
+
     fun processUrl(url: String): ProcessedUrl? {
         val handler = urlHandlers.find { it.canHandle(url) } ?: return null
         return ProcessedUrl(
