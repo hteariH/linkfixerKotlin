@@ -46,7 +46,8 @@ class TikTokDownloaderService {
         val patterns = listOf(
             "tiktok\\.com/\\@[\\w.-]+/video/([\\d]+)".toRegex(), // Standard format
             "tiktok\\.com/v/([\\d]+)".toRegex(),                // Short format
-            "vm\\.tiktok\\.com/([\\w]+)".toRegex()             // vm.tiktok.com format
+            "vm\\.tiktok\\.com/([\\w]+)".toRegex(),             // vm.tiktok.com format
+            "vt\\.tiktok\\.com/([\\w]+)".toRegex()             // vm.tiktok.com format
         )
 
         for (pattern in patterns) {

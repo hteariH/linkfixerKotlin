@@ -7,8 +7,10 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
+import java.io.File
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import kotlin.math.log
 import kotlin.random.Random
 
 @Service
@@ -16,13 +18,15 @@ class ScheduledMessageService(
     private val linkFixerBot: LinkFixerBot,
     private val chatRepository: ChatRepository,
     private val chatJpaRepository: ChatJpaRepository,
-    @Value("\${scheduled.message.text:Daily reminder: I'm here to fix your links!}") 
-    private val scheduledMessageText: String
+    @Value("\${scheduled.message.text:Daily reminder: I'm here to fix your links!}")
+    private val scheduledMessageText: String,
+    private val videoCacheService: VideoCacheService
+
 ) {
-    
+
     private val logger = LoggerFactory.getLogger(ScheduledMessageService::class.java)
 
-    private val scheduledMessages= arrayListOf(
+    private val scheduledMessages = arrayListOf(
         "До перемоги України у війні над Росією залишилося всього %s днів. Цей день стане новою сторінкою в історії нашої країни та усього вільного світу.",
         "Через %s днів завершиться одна з найтрагічніших сторінок в історії України, і над країною запанує мир, освячений нашою перемогою над агресором.",
         "Кожен із цих %s днів наближає нас до моменту, коли Україна остаточно звільниться від гніту та насильства з боку агресора. Ми на порозі великої перемоги!",
@@ -73,15 +77,22 @@ class ScheduledMessageService(
 
     private val targetDate = LocalDate.of(2025, 5, 2)
 
+    @Scheduled(cron = "0 15 2 * * *")
+    fun cleanCache() {
+        logger.info("Starting scheduled cache cleanup")
+        videoCacheService.cleanCache()
+        deleteFilesFromDirectory("/data/downloads")
+        logger.info("Completed scheduled cache cleanup")
+    }
 
     // Schedule for 13:15 every day
     @Scheduled(cron = "0 15 11 * * *")
 //    @Scheduled(cron = "0 34 20 * * *")
     fun sendDailyMessage() {
         logger.info("Starting scheduled daily message sending")
-        val chats = chatRepository.getAllChats()
+//        val chats = chatRepository.getAllChats()
         val chatsP = chatJpaRepository.findAll();
-        if (chats.isEmpty()) {
+        if (chatsP.isEmpty()) {
             logger.info("No active chats found to send the scheduled message")
             return
         }
@@ -95,7 +106,7 @@ class ScheduledMessageService(
         // Format the message with the days count
         val formattedMessage = String.format(messageTemplate, daysUntilTarget)
 
-        logger.info("Sending scheduled message to ${chats.size} chats. Days until target: $daysUntilTarget")
+        logger.info("Sending scheduled message to ${chatsP.size} chats. Days until target: $daysUntilTarget")
         for (chat in chatsP) {
             if (chat.sendCounterUntilWin) {
                 linkFixerBot.sendMessageToChat(chat.chatId, formattedMessage)
@@ -106,4 +117,22 @@ class ScheduledMessageService(
 
         logger.info("Completed scheduled daily message sending")
     }
+
+    private fun deleteFilesFromDirectory(directoryPath: String) {
+        val directory = File(directoryPath)
+        if (directory.exists() && directory.isDirectory) {
+            directory.listFiles()?.forEach { file ->
+                if (file.isFile) {
+                    if (file.delete()) {
+                        logger.info("Deleted file: ${file.absolutePath}")
+                    } else {
+                        logger.warn("Failed to delete file: ${file.absolutePath}")
+                    }
+                }
+            }
+        } else {
+            logger.warn("Directory does not exist or is not a directory: $directoryPath")
+        }
+    }
 }
+

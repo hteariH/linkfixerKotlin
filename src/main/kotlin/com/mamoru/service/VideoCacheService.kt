@@ -30,4 +30,13 @@ class VideoCacheService {
     fun cacheVideo(tikTokUrl: String, file: File) {
         videoCache[tikTokUrl] = file.absolutePath
     }
+
+    /**
+     * Clear all cached video file paths
+     */
+    fun cleanCache() {
+        videoCache.clear()
+    }
+    
+    
 }
