@@ -51,7 +51,7 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
     fun getChatsWithoutSendCounter(): List<ChatSettings> {
         return chatJpaRepository.findAll().filter { !it.sendCounterUntilWin }
     }
-
+    @Transactional
     fun addChat(chatId: Long?) {
         if (chatId != null) {
             val findByChatId = chatJpaRepository.findByChatId(chatId)
