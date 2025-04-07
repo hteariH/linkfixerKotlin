@@ -70,8 +70,8 @@ class InstagramUrlHandler : UrlHandler {
     }
     
     override fun convertUrl(url: String): String {
-        return url.replace("instagram.com", "ddinstagram.com")
-            .replace("instagr.am", "ddinstagram.com")
+        return url.replace("instagram.com", "kkinstagram.com")
+            .replace("instagr.am", "kkinstagram.com")
     }
     
     override fun canHandle(url: String): Boolean = 
