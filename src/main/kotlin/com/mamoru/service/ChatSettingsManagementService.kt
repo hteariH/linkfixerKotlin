@@ -31,6 +31,14 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
         }
     }
 
+    @Transactional
+    fun updateSendJoke(chatId: Long, newSetting: Boolean) {
+        val settings = getChatSettings(chatId)
+        if (settings.sendRandomJoke != newSetting) {
+            chatJpaRepository.save(ChatSettings(chatId, newSetting))
+        }
+    }
+
     /**
      * Get all chats with their settings
      */
@@ -60,4 +68,6 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
             }
         }
     }
+
+
 }

@@ -115,8 +115,34 @@ class ScheduledMessageService(
             }
         }
 
+        logger.info("Completed scheduled daily message sending")
+    }
+
+    @Scheduled(cron = "0 15 14 * * *")
+//    @Scheduled(cron = "0 34 20 * * *")
+    fun sendDailyJokeMessage() {
+        logger.info("Starting scheduled daily joke message sending")
+//        val chats = chatRepository.getAllChats()
+        val chatsP = chatJpaRepository.findAll();
+        if (chatsP.isEmpty()) {
+            logger.info("No active chats found to send the scheduled message")
+            return
+        }
+
+//        logger.info("Sending scheduled message to ${chatsP.size} chats. Days until target: $daysUntilTarget")
+        for (chat in chatsP) {
+            if (chat.sendRandomJoke) {
+                linkFixerBot.sendMessageToChat(chat.chatId, getRandomJoke())
+                logger.info("Sent scheduled message to chat ${chat.chatId}")
+            }
+        }
 
         logger.info("Completed scheduled daily message sending")
+    }
+
+    private fun getRandomJoke(): String {
+        TODO("Not yet implemented")
+        return "Your joke isn't ready yet, feel free to send me a PR"
     }
 
     private fun deleteFilesFromDirectory(directoryPath: String) {

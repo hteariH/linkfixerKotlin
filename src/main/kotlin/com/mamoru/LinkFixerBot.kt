@@ -65,6 +65,16 @@ class LinkFixerBot(
             }
 
             sendMessageToChat(chatIdL, responseText)
+        } else if (message.text.startsWith("/togglejoke", ignoreCase = true)) {
+            val currentSettings = chatService.getChatSettings(chatIdL)
+            val newSetting = !currentSettings.sendRandomJoke
+            chatService.updateSendJoke(chatIdL, newSetting)
+
+            val responseText = if (newSetting) {
+                "Counter until win will now be shown in this chat"
+            } else {
+                "Counter until win will not be shown in this chat"
+            }
         }
 
         val processedText = urlProcessingPipeline.processTextAndReplace(text)
