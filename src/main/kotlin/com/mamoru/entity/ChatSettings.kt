@@ -11,7 +11,7 @@ data class ChatSettings(
     val chatId: Long,
 
     // Default to true
-    val sendCounterUntilWin: Boolean = false,
+    val sendCounterUntilWin: Boolean = true,
 
     val sendRandomJoke: Boolean = false
 )

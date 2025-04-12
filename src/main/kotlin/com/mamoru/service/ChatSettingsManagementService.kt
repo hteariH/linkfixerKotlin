@@ -14,7 +14,7 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
      */
     fun getChatSettings(chatId: Long): ChatSettings {
         return chatJpaRepository.findById(chatId).orElseGet {
-            val newSettings = ChatSettings(chatId)
+            val newSettings = ChatSettings(chatId, sendCounterUntilWin = false, sendRandomJoke = false)
             chatJpaRepository.save(newSettings)
             newSettings
         }
@@ -27,7 +27,7 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
     fun updateSendCounterUntilWin(chatId: Long, sendCounter: Boolean) {
         val settings = getChatSettings(chatId)
         if (settings.sendCounterUntilWin != sendCounter) {
-            chatJpaRepository.save(ChatSettings(chatId, sendCounter))
+            chatJpaRepository.save(ChatSettings(chatId, sendCounter, settings.sendRandomJoke))
         }
     }
 
@@ -35,7 +35,7 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
     fun updateSendJoke(chatId: Long, newSetting: Boolean) {
         val settings = getChatSettings(chatId)
         if (settings.sendRandomJoke != newSetting) {
-            chatJpaRepository.save(ChatSettings(chatId, newSetting))
+            chatJpaRepository.save(ChatSettings(chatId, settings.sendCounterUntilWin, newSetting))
         }
     }
 
@@ -64,7 +64,7 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
         if (chatId != null) {
             val findByChatId = chatJpaRepository.findByChatId(chatId)
             if (findByChatId == null) {
-                chatJpaRepository.save(ChatSettings(chatId, true))
+                chatJpaRepository.save(ChatSettings(chatId, true, false))
             }
         }
     }

@@ -25,7 +25,7 @@ class LinkFixerBotApplication {
         try {
             telegramBotsApi.registerBot(linkFixerBot)
             println("Bot started successfully!")
-            println(chatJpaRepository.findAll());
+//            println(chatJpaRepository.findAll());
         } catch (e: TelegramApiException) {
             e.printStackTrace()
         }

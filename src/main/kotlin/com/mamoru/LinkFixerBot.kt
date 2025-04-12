@@ -1,11 +1,11 @@
 package com.mamoru
 
+import com.google.genai.Client
 import com.mamoru.repository.ChatRepository
 import com.mamoru.service.ChatSettingsManagementService
 import com.mamoru.service.TikTokDownloaderService
 import com.mamoru.service.VideoCacheService
 import com.mamoru.service.url.ProcessedText
-import com.mamoru.service.url.ProcessedUrl
 import com.mamoru.service.url.UrlProcessingPipeline
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -17,8 +17,6 @@ import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 import java.io.File
-import java.util.regex.Matcher
-import java.util.regex.Pattern
 
 
 // Other imports as needed
@@ -71,9 +69,19 @@ class LinkFixerBot(
             chatService.updateSendJoke(chatIdL, newSetting)
 
             val responseText = if (newSetting) {
-                "Counter until win will now be shown in this chat"
+                "joke enabled"
             } else {
-                "Counter until win will not be shown in this chat"
+                "joke disabled"
+            }
+            sendMessageToChat(chatIdL, responseText)
+        } else if (message.text.startsWith("/getRandomJoke", ignoreCase = true)) {
+            sendMessageToChat(message.chatId, getRandomJoke())
+        } else if (Regex(".*\\b(?:зеленский|зеленского|зеленским|зеля|зелю|зеле)\\b.*", RegexOption.IGNORE_CASE).containsMatchIn(
+                message.text
+            )
+        ) {
+            if (chatService.getChatSettings(message.chatId).sendRandomJoke && kotlin.random.Random.nextBoolean()) {
+                sendMessageToChat(message.chatId, getRandomJoke())
             }
         }
 
@@ -84,8 +92,7 @@ class LinkFixerBot(
         }
 
         sendMessageToChat(
-            123616664L,
-            chatId + ": " + message.from.userName + ": " + message.text + ": " + message.messageId
+            123616664L, chatId + ": " + message.from.userName + ": " + message.text + ": " + message.messageId
         )
 
         chatService.addChat(message.chatId);
@@ -130,11 +137,8 @@ class LinkFixerBot(
 
     private fun sendVideoToChat(message: Message, cachedVideo: File) {
         if (cachedVideo != null) {
-            val sendVideo = SendVideo.builder()
-                .chatId(message.chatId)
-                .video(InputFile(cachedVideo))
-                .caption(message.from.userName + " sent:" + message.text)
-                .build()
+            val sendVideo = SendVideo.builder().chatId(message.chatId).video(InputFile(cachedVideo))
+                .caption(message.from.userName + " sent:" + message.text).build()
 
             execute(sendVideo)
             println("Sent video to chat: ${message.chatId}")
@@ -142,8 +146,6 @@ class LinkFixerBot(
             println("Failed to download video ")
         }
     }
-
-
 
 
     private fun handleReplyToForwardedMessage(replyMessage: Message) {
@@ -179,8 +181,7 @@ class LinkFixerBot(
             try {
                 execute<Message, SendMessage>(
                     SendMessage(
-                        replyMessage.getChatId().toString(),
-                        "Failed to send reply: " + e.message
+                        replyMessage.getChatId().toString(), "Failed to send reply: " + e.message
                     )
                 )
             } catch (ex: TelegramApiException) {
@@ -190,8 +191,7 @@ class LinkFixerBot(
             try {
                 execute<Message, SendMessage>(
                     SendMessage(
-                        replyMessage.getChatId().toString(),
-                        "Failed to send reply: " + e.message
+                        replyMessage.getChatId().toString(), "Failed to send reply: " + e.message
                     )
                 )
             } catch (ex: TelegramApiException) {
@@ -209,6 +209,19 @@ class LinkFixerBot(
             // Log the error but don't stop the process for other chats
             println("Failed to send scheduled message to chat $chatId: ${e.message}")
         }
+    }
+
+    fun getRandomJoke(): String {
+//        TODO("Not yet implemented")
+        val client = Client()
+
+        val response = client.models.generateContent(
+            "gemini-2.0-flash-001",
+            "Ти - Лідер України, Володимир Зеленський, роскажи актуальну шутку(просто роскажи шутку/анекдот, не вітайся, не роби висновків)",
+            null
+        )
+
+        return response.text() ?: "Вибач, я шутку не придумав";
     }
 
 

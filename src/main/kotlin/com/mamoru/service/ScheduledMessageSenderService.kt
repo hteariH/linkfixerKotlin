@@ -1,5 +1,6 @@
 package com.mamoru.service
 
+import com.google.genai.Client
 import com.mamoru.LinkFixerBot
 import com.mamoru.repository.ChatJpaRepository
 import com.mamoru.repository.ChatRepository
@@ -7,12 +8,11 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import java.io.File
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
-import kotlin.math.log
 import kotlin.random.Random
+
 
 @Service
 class ScheduledMessageService(
@@ -132,18 +132,23 @@ class ScheduledMessageService(
 //        logger.info("Sending scheduled message to ${chatsP.size} chats. Days until target: $daysUntilTarget")
         for (chat in chatsP) {
             if (chat.sendRandomJoke) {
-                linkFixerBot.sendMessageToChat(chat.chatId, getRandomJoke())
-                logger.info("Sent scheduled message to chat ${chat.chatId}")
+                linkFixerBot.sendMessageToChat(chat.chatId, linkFixerBot.getRandomJoke())
+                logger.info("Sent scheduled message with joke to chat ${chat.chatId}")
             }
         }
 
         logger.info("Completed scheduled daily message sending")
     }
 
-    private fun getRandomJoke(): String {
-        TODO("Not yet implemented")
-        return "Your joke isn't ready yet, feel free to send me a PR"
-    }
+//    fun getRandomJoke(): String {
+////        TODO("Not yet implemented")
+//        val client = Client()
+//
+//        val response =
+//            client.models.generateContent("gemini-2.0-flash-001", "Ти - Лідер України, Володимир Зеленський, роскажи актуальну шутку", null)
+//
+//        return response.text() ?: "Вибач, я шутку не придумав";
+//    }
 
     private fun deleteFilesFromDirectory(directoryPath: String) {
         val directory = File(directoryPath)
