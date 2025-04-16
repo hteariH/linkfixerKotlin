@@ -14,7 +14,8 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
      */
     fun getChatSettings(chatId: Long): ChatSettings {
         return chatJpaRepository.findById(chatId).orElseGet {
-            val newSettings = ChatSettings(chatId, sendCounterUntilWin = false, sendRandomJoke = false)
+            val newSettings =
+                ChatSettings(chatId, sendCounterUntilWin = false, sendRandomJoke = false, commentOnPictures = false)
             chatJpaRepository.save(newSettings)
             newSettings
         }
@@ -27,7 +28,14 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
     fun updateSendCounterUntilWin(chatId: Long, sendCounter: Boolean) {
         val settings = getChatSettings(chatId)
         if (settings.sendCounterUntilWin != sendCounter) {
-            chatJpaRepository.save(ChatSettings(chatId, sendCounter, settings.sendRandomJoke))
+            chatJpaRepository.save(
+                ChatSettings(
+                    chatId,
+                    sendCounter,
+                    settings.sendRandomJoke,
+                    settings.commentOnPictures
+                )
+            )
         }
     }
 
@@ -35,7 +43,29 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
     fun updateSendJoke(chatId: Long, newSetting: Boolean) {
         val settings = getChatSettings(chatId)
         if (settings.sendRandomJoke != newSetting) {
-            chatJpaRepository.save(ChatSettings(chatId, settings.sendCounterUntilWin, newSetting))
+            chatJpaRepository.save(
+                ChatSettings(
+                    chatId,
+                    settings.sendCounterUntilWin,
+                    newSetting,
+                    settings.commentOnPictures
+                )
+            )
+        }
+    }
+
+    @Transactional
+    fun updateCommentOnPictures(chatId: Long, newSetting: Boolean) {
+        val settings = getChatSettings(chatId)
+        if (settings.commentOnPictures != newSetting) {
+            chatJpaRepository.save(
+                ChatSettings(
+                    chatId,
+                    settings.sendCounterUntilWin,
+                    settings.sendRandomJoke,
+                    newSetting
+                )
+            )
         }
     }
 
@@ -45,26 +75,27 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
     fun getAllChats(): List<ChatSettings> {
         return chatJpaRepository.findAll()
     }
-    
+
     /**
      * Get all chats where sendCounterUntilWin is true
      */
     fun getChatsWithSendCounter(): List<ChatSettings> {
         return chatJpaRepository.findAll().filter { it.sendCounterUntilWin }
     }
-    
+
     /**
      * Get all chats where sendCounterUntilWin is false
      */
     fun getChatsWithoutSendCounter(): List<ChatSettings> {
         return chatJpaRepository.findAll().filter { !it.sendCounterUntilWin }
     }
+
     @Transactional
     fun addChat(chatId: Long?) {
         if (chatId != null) {
             val findByChatId = chatJpaRepository.findByChatId(chatId)
             if (findByChatId == null) {
-                chatJpaRepository.save(ChatSettings(chatId, true, false))
+                chatJpaRepository.save(ChatSettings(chatId, false, false, false))
             }
         }
     }

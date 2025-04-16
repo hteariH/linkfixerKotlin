@@ -118,7 +118,7 @@ class ScheduledMessageService(
         logger.info("Completed scheduled daily message sending")
     }
 
-    @Scheduled(cron = "0 15 14 * * *")
+    @Scheduled(cron = "0 15 */7 * * *")
 //    @Scheduled(cron = "0 34 20 * * *")
     fun sendDailyJokeMessage() {
         logger.info("Starting scheduled daily joke message sending")

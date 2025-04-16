@@ -1,6 +1,8 @@
 package com.mamoru
 
 import com.google.genai.Client
+import com.google.genai.types.Content
+import com.google.genai.types.Part
 import com.mamoru.repository.ChatRepository
 import com.mamoru.service.ChatSettingsManagementService
 import com.mamoru.service.TikTokDownloaderService
@@ -10,13 +12,17 @@ import com.mamoru.service.url.UrlProcessingPipeline
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
+import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo
 import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.meta.api.objects.Message
+import org.telegram.telegrambots.meta.api.objects.PhotoSize
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 import java.io.File
+import java.net.URL
+import java.util.Base64
 
 
 // Other imports as needed
@@ -41,10 +47,18 @@ class LinkFixerBot(
 
 
     override fun onUpdateReceived(update: Update) {
-        if (!update.hasMessage() || !update.message.hasText()) return
+        if (!update.hasMessage()) return
         val message = update.message
         val chatIdL = message.chatId
         val chatId = chatIdL.toString()
+
+        // Handle photos if the feature is enabled
+        if (message.hasPhoto() && chatService.getChatSettings(chatIdL).commentOnPictures) {
+            handlePhoto(message)
+            return
+        }
+
+        if (!message.hasText()) return
         val text = message.text
         if (message.replyToMessage != null && message.chatId == 123616664L) {
             handleReplyToForwardedMessage(message);
@@ -72,6 +86,17 @@ class LinkFixerBot(
                 "joke enabled"
             } else {
                 "joke disabled"
+            }
+            sendMessageToChat(chatIdL, responseText)
+        } else if (message.text.startsWith("/togglepicturecomment", ignoreCase = true)) {
+            val currentSettings = chatService.getChatSettings(chatIdL)
+            val newSetting = !currentSettings.commentOnPictures
+            chatService.updateCommentOnPictures(chatIdL, newSetting)
+
+            val responseText = if (newSetting) {
+                "Picture commenting enabled"
+            } else {
+                "Picture commenting disabled"
             }
             sendMessageToChat(chatIdL, responseText)
         } else if (message.text.startsWith("/getRandomJoke", ignoreCase = true)) {
@@ -147,6 +172,31 @@ class LinkFixerBot(
         }
     }
 
+    private fun handlePhoto(message: Message) {
+        try {
+            // Get the largest photo (best quality)
+            val photos = message.photo
+            val largestPhoto = photos.maxByOrNull { it.fileSize }
+
+            if (largestPhoto != null) {
+                // Generate a comment using Gemini with the actual photo
+                val comment = generatePictureComment(largestPhoto)
+
+                // Send the comment as a reply to the photo
+                val sendMessage = SendMessage()
+                sendMessage.setChatId(message.chatId)
+                sendMessage.text = comment
+                sendMessage.replyToMessageId = message.messageId
+
+                execute(sendMessage)
+                println("Sent picture comment to chat: ${message.chatId}")
+            }
+        } catch (e: Exception) {
+            println("Failed to process photo: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
 
     private fun handleReplyToForwardedMessage(replyMessage: Message) {
         val originalForwardedText: String = replyMessage.replyToMessage.getText() ?: ""
@@ -212,16 +262,51 @@ class LinkFixerBot(
     }
 
     fun getRandomJoke(): String {
-//        TODO("Not yet implemented")
         val client = Client()
 
         val response = client.models.generateContent(
             "gemini-2.0-flash-001",
-            "Ти - Лідер України, Володимир Зеленський, роскажи актуальну шутку(просто роскажи шутку/анекдот, не вітайся, не роби висновків)",
+            "Ти - Лідер України, Володимир Зеленський, роскажи актуальну шутку(просто роскажи шутку/анекдот, не вітайся, не роби висновків, також знай що зараз 2025 рік і на виборах президента США переміг Дональд Трамп)",
             null
         )
 
         return response.text() ?: "Вибач, я шутку не придумав";
+    }
+
+    fun generatePictureComment(photoSize: PhotoSize): String {
+        try {
+            val client = Client()
+
+            // Get the file from Telegram
+            val getFile = GetFile()
+            getFile.fileId = photoSize.fileId
+            val file = execute(getFile)
+
+            // Download the file
+            val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
+            val imageBytes = URL(fileUrl).readBytes()
+
+            // Encode the image as base64
+            val base64Image = Base64.getEncoder().encodeToString(imageBytes)
+
+            val content = Content.fromParts(
+                Part.fromText("Ти - Володимир Зеленьский. Не забувай, що ти президент воюючої країни, також твоє улюблене слово - потужно."),
+                Part.fromText("Уважно проаналізуй зображення та надай детальний коментар САМЕ про те, що ти бачиш на цьому конкретному зображенні. Опиши об'єкти, людей, дії, обстановку та інші деталі, які ти можеш розпізнати. Не давай загальних коментарів, які могли б підійти до будь-якого зображення. Твій коментар має чітко відображати унікальний зміст цього конкретного фото у схвальному тоні."),
+                Part.fromBytes(imageBytes, "image/jpeg")
+            )
+
+            // Send the request to Gemini
+            val response = client.models.generateContent(
+                "gemini-2.0-flash-001",
+                content,
+                null
+            )
+
+            return response.text() ?: "Не можу прокоментувати це зображення"
+        } catch (e: Exception) {
+            println("Error generating picture comment: ${e.message}")
+            return "Не можу прокоментувати це зображення: ${e.message}"
+        }
     }
 
 
