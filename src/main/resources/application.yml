@@ -32,7 +32,9 @@ tiktok:
   download:
     path: /data/downloads
 
+instagram:
+  download:
+    path: /data/downloads
+
 ytdlp:
   path: yt-dlp
-
-

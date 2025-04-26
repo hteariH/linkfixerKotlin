@@ -5,6 +5,7 @@ import com.google.genai.types.Content
 import com.google.genai.types.Part
 import com.mamoru.repository.ChatRepository
 import com.mamoru.service.ChatSettingsManagementService
+import com.mamoru.service.InstagramDownloaderService
 import com.mamoru.service.TikTokDownloaderService
 import com.mamoru.service.VideoCacheService
 import com.mamoru.service.url.ProcessedText
@@ -32,6 +33,7 @@ class LinkFixerBot(
     @Value("\${telegram.bot.token}") private val botToken: String,
     private val videoCacheService: VideoCacheService,
     private val tikTokDownloaderService: TikTokDownloaderService,
+    private val instagramDownloaderService: InstagramDownloaderService,
     private val chatRepository: ChatRepository,
     private val chatService: ChatSettingsManagementService,
     private val urlProcessingPipeline: UrlProcessingPipeline
@@ -129,7 +131,8 @@ class LinkFixerBot(
         for (processedUrl in processedUrls) {
             when (processedUrl.type) {
                 "tiktok" -> handleTikTokUrl(message, processedUrl.original)
-                "twitter", "instagram" -> {
+                "instagram" -> handleInstagramUrl(message, processedUrl.original)
+                "twitter" -> {
                     if (processedUrl.original != processedUrl.converted) {
                         sendMessageToChat(message.chatId, processedText.modifiedText)
                         return
@@ -157,6 +160,27 @@ class LinkFixerBot(
             }
         } catch (e: Exception) {
             sendMessageToChat(message.chatId, "Failed to process TikTok video: ${e.message}")
+        }
+    }
+
+    private fun handleInstagramUrl(message: Message, url: String) {
+        try {
+            // Check if video is already in cache
+            val cachedVideo = videoCacheService.getCachedVideo(url)
+            if (cachedVideo != null) {
+                sendVideoToChat(message, cachedVideo)
+                return
+            }
+
+            // Download video if not cached
+            val downloadedFile = instagramDownloaderService.downloadVideo(url)
+            if (downloadedFile != null) {
+                // Cache the video for future use
+                videoCacheService.cacheVideo(url, downloadedFile)
+                sendVideoToChat(message, downloadedFile)
+            }
+        } catch (e: Exception) {
+            sendMessageToChat(message.chatId, "Failed to process Instagram video: ${e.message}")
         }
     }
 
@@ -290,7 +314,7 @@ class LinkFixerBot(
             val base64Image = Base64.getEncoder().encodeToString(imageBytes)
 
             val content = Content.fromParts(
-                Part.fromText("Ти - Володимир Зеленьский. Не забувай, що ти президент воюючої країни, також твоє улюблене слово - потужно."),
+                Part.fromText("Ти - Володимир Зеленьский. Не забувай, що ти президент воюючої країни, також твоє улюблене слово - потужно. при відповідях не вітайся і пиши максимально коротко, а також не забудь обматерити і змішати з гівном того хто відправив тобі повідомлення"),
                 Part.fromText("Уважно проаналізуй зображення та надай детальний коментар САМЕ про те, що ти бачиш на цьому конкретному зображенні. Опиши об'єкти, людей, дії, обстановку та інші деталі, які ти можеш розпізнати. Не давай загальних коментарів, які могли б підійти до будь-якого зображення. Твій коментар має чітко відображати унікальний зміст цього конкретного фото у схвальному тоні."),
                 Part.fromBytes(imageBytes, "image/jpeg")
             )
