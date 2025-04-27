@@ -1,9 +1,7 @@
 package com.mamoru.service
 
-import com.google.genai.Client
 import com.mamoru.LinkFixerBot
 import com.mamoru.repository.ChatJpaRepository
-import com.mamoru.repository.ChatRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
@@ -17,7 +15,6 @@ import kotlin.random.Random
 @Service
 class ScheduledMessageService(
     private val linkFixerBot: LinkFixerBot,
-    private val chatRepository: ChatRepository,
     private val chatJpaRepository: ChatJpaRepository,
     @Value("\${scheduled.message.text:Daily reminder: I'm here to fix your links!}")
     private val scheduledMessageText: String,
@@ -132,7 +129,8 @@ class ScheduledMessageService(
 //        logger.info("Sending scheduled message to ${chatsP.size} chats. Days until target: $daysUntilTarget")
         for (chat in chatsP) {
             if (chat.sendRandomJoke) {
-                linkFixerBot.sendMessageToChat(chat.chatId, linkFixerBot.getRandomJoke())
+                // Pass the chatId to getRandomJoke to use the custom prompt for this chat
+                linkFixerBot.sendMessageToChat(chat.chatId, linkFixerBot.getRandomJoke(chat.chatId))
                 logger.info("Sent scheduled message with joke to chat ${chat.chatId}")
             }
         }
@@ -167,4 +165,3 @@ class ScheduledMessageService(
         }
     }
 }
-

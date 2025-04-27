@@ -3,7 +3,6 @@ package com.mamoru
 import com.google.genai.Client
 import com.google.genai.types.Content
 import com.google.genai.types.Part
-import com.mamoru.repository.ChatRepository
 import com.mamoru.service.ChatSettingsManagementService
 import com.mamoru.service.InstagramDownloaderService
 import com.mamoru.service.TikTokDownloaderService
@@ -34,7 +33,6 @@ class LinkFixerBot(
     private val videoCacheService: VideoCacheService,
     private val tikTokDownloaderService: TikTokDownloaderService,
     private val instagramDownloaderService: InstagramDownloaderService,
-    private val chatRepository: ChatRepository,
     private val chatService: ChatSettingsManagementService,
     private val urlProcessingPipeline: UrlProcessingPipeline
 ) : TelegramLongPollingBot(botToken) {
@@ -102,13 +100,31 @@ class LinkFixerBot(
             }
             sendMessageToChat(chatIdL, responseText)
         } else if (message.text.startsWith("/getRandomJoke", ignoreCase = true)) {
-            sendMessageToChat(message.chatId, getRandomJoke())
+            sendMessageToChat(message.chatId, getRandomJoke(message.chatId))
+        } else if (message.text.startsWith("/setJokePrompt", ignoreCase = true)) {
+            // Extract the prompt from the command
+            val prompt = message.text.substringAfter("/setJokePrompt").trim()
+            if (prompt.isNotEmpty()) {
+                chatService.updateJokePrompt(message.chatId, prompt)
+                sendMessageToChat(message.chatId, "Joke prompt updated successfully!")
+            } else {
+                sendMessageToChat(message.chatId, "Please provide a prompt after the command. Example: /setJokePrompt Tell me a joke about programming")
+            }
+        } else if (message.text.startsWith("/setPicturePrompt", ignoreCase = true)) {
+            // Extract the prompt from the command
+            val prompt = message.text.substringAfter("/setPicturePrompt").trim()
+            if (prompt.isNotEmpty()) {
+                chatService.updatePicturePrompt(message.chatId, prompt)
+                sendMessageToChat(message.chatId, "Picture comment prompt updated successfully!")
+            } else {
+                sendMessageToChat(message.chatId, "Please provide a prompt after the command. Example: /setPicturePrompt Comment on this picture as if you were a famous comedian")
+            }
         } else if (Regex(".*\\b(?:зеленский|зеленского|зеленским|зеля|зелю|зеле)\\b.*", RegexOption.IGNORE_CASE).containsMatchIn(
                 message.text
             )
         ) {
             if (chatService.getChatSettings(message.chatId).sendRandomJoke && kotlin.random.Random.nextBoolean()) {
-                sendMessageToChat(message.chatId, getRandomJoke())
+                sendMessageToChat(message.chatId, getRandomJoke(message.chatId))
             }
         }
 
@@ -204,7 +220,8 @@ class LinkFixerBot(
 
             if (largestPhoto != null) {
                 // Generate a comment using Gemini with the actual photo
-                val comment = generatePictureComment(largestPhoto)
+                // Pass the chatId to use the custom prompt for this chat
+                val comment = generatePictureComment(largestPhoto, message.chatId)
 
                 // Send the comment as a reply to the photo
                 val sendMessage = SendMessage()
@@ -285,19 +302,26 @@ class LinkFixerBot(
         }
     }
 
-    fun getRandomJoke(): String {
+    fun getRandomJoke(chatId: Long? = null): String {
         val client = Client()
+
+        // Get the joke prompt from chat settings if chatId is provided
+        val prompt = if (chatId != null) {
+            chatService.getChatSettings(chatId).jokePrompt
+        } else {
+            "Ти - Лідер України, Володимир Зеленський, роскажи актуальну шутку(просто роскажи шутку/анекдот, не вітайся, не роби висновків, також знай що зараз 2025 рік і на виборах президента США переміг Дональд Трамп)"
+        }
 
         val response = client.models.generateContent(
             "gemini-2.0-flash-001",
-            "Ти - Лідер України, Володимир Зеленський, роскажи актуальну шутку(просто роскажи шутку/анекдот, не вітайся, не роби висновків, також знай що зараз 2025 рік і на виборах президента США переміг Дональд Трамп)",
+            prompt,
             null
         )
 
         return response.text() ?: "Вибач, я шутку не придумав";
     }
 
-    fun generatePictureComment(photoSize: PhotoSize): String {
+    fun generatePictureComment(photoSize: PhotoSize, chatId: Long): String {
         try {
             val client = Client()
 
@@ -313,8 +337,11 @@ class LinkFixerBot(
             // Encode the image as base64
             val base64Image = Base64.getEncoder().encodeToString(imageBytes)
 
+            // Get the picture prompt from chat settings
+            val picturePrompt = chatService.getChatSettings(chatId).picturePrompt
+
             val content = Content.fromParts(
-                Part.fromText("Ти - Володимир Зеленьский. Не забувай, що ти президент воюючої країни, також твоє улюблене слово - потужно. при відповідях не вітайся і пиши максимально коротко, а також не забудь обматерити і змішати з гівном того хто відправив тобі повідомлення"),
+                Part.fromText(picturePrompt),
                 Part.fromText("Уважно проаналізуй зображення та надай детальний коментар САМЕ про те, що ти бачиш на цьому конкретному зображенні. Опиши об'єкти, людей, дії, обстановку та інші деталі, які ти можеш розпізнати. Не давай загальних коментарів, які могли б підійти до будь-якого зображення. Твій коментар має чітко відображати унікальний зміст цього конкретного фото у схвальному тоні."),
                 Part.fromBytes(imageBytes, "image/jpeg")
             )

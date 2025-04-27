@@ -15,7 +15,13 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
     fun getChatSettings(chatId: Long): ChatSettings {
         return chatJpaRepository.findById(chatId).orElseGet {
             val newSettings =
-                ChatSettings(chatId, sendCounterUntilWin = false, sendRandomJoke = false, commentOnPictures = false)
+                ChatSettings(
+                    chatId, 
+                    sendCounterUntilWin = false, 
+                    sendRandomJoke = false, 
+                    commentOnPictures = false
+                    // Default values for jokePrompt and picturePrompt will be used
+                )
             chatJpaRepository.save(newSettings)
             newSettings
         }
@@ -33,7 +39,9 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
                     chatId,
                     sendCounter,
                     settings.sendRandomJoke,
-                    settings.commentOnPictures
+                    settings.commentOnPictures,
+                    settings.jokePrompt,
+                    settings.picturePrompt
                 )
             )
         }
@@ -48,7 +56,9 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
                     chatId,
                     settings.sendCounterUntilWin,
                     newSetting,
-                    settings.commentOnPictures
+                    settings.commentOnPictures,
+                    settings.jokePrompt,
+                    settings.picturePrompt
                 )
             )
         }
@@ -63,7 +73,49 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
                     chatId,
                     settings.sendCounterUntilWin,
                     settings.sendRandomJoke,
-                    newSetting
+                    newSetting,
+                    settings.jokePrompt,
+                    settings.picturePrompt
+                )
+            )
+        }
+    }
+
+    /**
+     * Update the joke prompt for a specific chat
+     */
+    @Transactional
+    fun updateJokePrompt(chatId: Long, jokePrompt: String) {
+        val settings = getChatSettings(chatId)
+        if (settings.jokePrompt != jokePrompt) {
+            chatJpaRepository.save(
+                ChatSettings(
+                    chatId,
+                    settings.sendCounterUntilWin,
+                    settings.sendRandomJoke,
+                    settings.commentOnPictures,
+                    jokePrompt,
+                    settings.picturePrompt
+                )
+            )
+        }
+    }
+
+    /**
+     * Update the picture comment prompt for a specific chat
+     */
+    @Transactional
+    fun updatePicturePrompt(chatId: Long, picturePrompt: String) {
+        val settings = getChatSettings(chatId)
+        if (settings.picturePrompt != picturePrompt) {
+            chatJpaRepository.save(
+                ChatSettings(
+                    chatId,
+                    settings.sendCounterUntilWin,
+                    settings.sendRandomJoke,
+                    settings.commentOnPictures,
+                    settings.jokePrompt,
+                    picturePrompt
                 )
             )
         }
@@ -95,7 +147,10 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
         if (chatId != null) {
             val findByChatId = chatJpaRepository.findByChatId(chatId)
             if (findByChatId == null) {
-                chatJpaRepository.save(ChatSettings(chatId, false, false, false))
+                chatJpaRepository.save(ChatSettings(
+                    chatId
+                    // Default values for all other fields will be used
+                ))
             }
         }
     }
