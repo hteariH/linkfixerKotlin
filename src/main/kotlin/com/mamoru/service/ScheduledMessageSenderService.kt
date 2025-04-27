@@ -18,7 +18,8 @@ class ScheduledMessageService(
     private val chatJpaRepository: ChatJpaRepository,
     @Value("\${scheduled.message.text:Daily reminder: I'm here to fix your links!}")
     private val scheduledMessageText: String,
-    private val videoCacheService: VideoCacheService
+    private val videoCacheService: VideoCacheService,
+    private val geminiAIService: GeminiAIService
 
 ) {
 
@@ -130,7 +131,7 @@ class ScheduledMessageService(
         for (chat in chatsP) {
             if (chat.sendRandomJoke) {
                 // Pass the chatId to getRandomJoke to use the custom prompt for this chat
-                linkFixerBot.sendMessageToChat(chat.chatId, linkFixerBot.getRandomJoke(chat.chatId))
+                linkFixerBot.sendMessageToChat(chat.chatId, geminiAIService.getRandomJoke(chat.chatId))
                 logger.info("Sent scheduled message with joke to chat ${chat.chatId}")
             }
         }
