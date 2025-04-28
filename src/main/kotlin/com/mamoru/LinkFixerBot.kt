@@ -47,11 +47,11 @@ class LinkFixerBot(
 
             if (!message.hasText()) return
 
-            // Handle admin replies
-            if (message.replyToMessage != null && message.chatId == ADMIN_CHAT_ID) {
-                handleAdminReply(message)
-                return
-            }
+//            // Handle admin replies
+//            if (message.replyToMessage != null && message.chatId == ADMIN_CHAT_ID) {
+//                handleAdminReply(message)
+//                return
+//            }
 
             // Handle commands
             val commandResult = commandHandlerService.handleCommand(message)
@@ -74,7 +74,21 @@ class LinkFixerBot(
      * Process a regular text message
      */
     private fun processTextMessage(message: Message) {
-        val result = messageProcessorService.processTextMessage(message)
+        val result = messageProcessorService.processTextMessage(message, this, botToken)
+
+        // Send mention response if generated (when bot is mentioned or replied to)
+        result.mentionResponse?.let { responseText ->
+            val sendMessage = SendMessage()
+            sendMessage.chatId = message.chatId.toString()
+            sendMessage.text = responseText
+            sendMessage.replyToMessageId = message.messageId
+            try {
+                execute(sendMessage)
+                logger.info("Sent response to mention/reply in chat: ${message.chatId}")
+            } catch (e: TelegramApiException) {
+                logger.error("Failed to send mention response: ${e.message}", e)
+            }
+        }
 
         // Send joke response if generated
         result.jokeResponse?.let { jokeText ->

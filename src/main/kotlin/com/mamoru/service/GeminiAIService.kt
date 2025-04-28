@@ -98,4 +98,83 @@ class GeminiAIService(
         }
     }
 
+    /**
+     * Generates a response to a message when the bot is mentioned or replied to
+     * Uses the custom picture prompt from chat settings
+     *
+     * @param messageText The text of the message to respond to
+     * @param chatId The chat ID to get custom prompt for
+     * @param replyText The text of the message being replied to, if any
+     * @param replyPhoto The photo from the message being replied to, if any
+     * @param bot The Telegram bot instance (needed to download the photo)
+     * @param botToken The Telegram bot token
+     * @return The generated response text
+     */
+    fun generateMentionResponse(
+        messageText: String, 
+        chatId: Long, 
+        replyText: String? = null, 
+        replyPhoto: PhotoSize? = null,
+        bot: TelegramLongPollingBot? = null,
+        botToken: String? = null
+    ): String {
+        try {
+            // Get the picture prompt from chat settings
+            val picturePrompt = chatSettingsManagementService.getChatSettings(chatId).picturePrompt
+
+            // Create content parts list
+            val contentParts = mutableListOf<Part>()
+
+            // Add picture prompt
+            contentParts.add(Part.fromText(picturePrompt))
+
+            // Add context from replied message if available
+            if (replyText != null) {
+                contentParts.add(Part.fromText("This is the message I'm replying to: $replyText"))
+            }
+
+            // Add the current message
+            contentParts.add(Part.fromText("Respond to this message: $messageText"))
+
+            // If there's a photo in the replied message, download and include it
+            if (replyPhoto != null && bot != null && botToken != null) {
+                try {
+                    // Get the file from Telegram
+                    val getFile = GetFile()
+                    getFile.fileId = replyPhoto.fileId
+                    val file = bot.execute(getFile)
+
+                    // Download the file
+                    val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
+                    val imageBytes = URL(fileUrl).readBytes()
+
+                    // Add the photo to the content
+                    contentParts.add(Part.fromText(Constants.AI.PICTURE_ANALYSIS_INSTRUCTION))
+                    contentParts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+                } catch (e: Exception) {
+                    logger.error("Error downloading photo from replied message: ${e.message}", e)
+                    contentParts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I couldn't download it. Please acknowledge this in your response."))
+                }
+            } else if (replyPhoto != null) {
+                // If we have a photo but no bot or token, add a note
+                contentParts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I can't see it right now. Please acknowledge this in your response."))
+            }
+
+            // Create content from parts
+            val content = Content.fromParts(*contentParts.toTypedArray())
+
+            // Send the request to Gemini
+            val response = client.models.generateContent(
+                defaultModel,
+                content,
+                null
+            )
+
+            return response.text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
+        } catch (e: Exception) {
+            logger.error("Error generating mention response: ${e.message}", e)
+            return "${Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE}: ${e.message}"
+        }
+    }
+
 }
