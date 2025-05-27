@@ -40,6 +40,7 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
                     sendCounter,
                     settings.sendRandomJoke,
                     settings.commentOnPictures,
+                    true,
                     settings.jokePrompt,
                     settings.picturePrompt
                 )
@@ -57,6 +58,7 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
                     settings.sendCounterUntilWin,
                     newSetting,
                     settings.commentOnPictures,
+                    settings.transcribeAudio,
                     settings.jokePrompt,
                     settings.picturePrompt
                 )
@@ -74,6 +76,7 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
                     settings.sendCounterUntilWin,
                     settings.sendRandomJoke,
                     newSetting,
+                    settings.transcribeAudio,
                     settings.jokePrompt,
                     settings.picturePrompt
                 )
@@ -94,6 +97,7 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
                     settings.sendCounterUntilWin,
                     settings.sendRandomJoke,
                     settings.commentOnPictures,
+                    settings.transcribeAudio,
                     jokePrompt,
                     settings.picturePrompt
                 )
@@ -114,6 +118,7 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
                     settings.sendCounterUntilWin,
                     settings.sendRandomJoke,
                     settings.commentOnPictures,
+                    settings.transcribeAudio,
                     settings.jokePrompt,
                     picturePrompt
                 )
@@ -152,6 +157,18 @@ class ChatSettingsManagementService(private val chatJpaRepository: ChatJpaReposi
                     // Default values for all other fields will be used
                 ))
             }
+        }
+    }
+
+    /**
+     * Update whether audio messages should be transcribed for a specific chat
+     */
+    @Transactional
+    fun updateTranscribeAudio(chatId: Long, newSetting: Boolean) {
+        val settings = getChatSettings(chatId)
+        if (settings.transcribeAudio != newSetting) {
+            val updatedSettings = settings.copy(transcribeAudio = newSetting)
+            chatJpaRepository.save(updatedSettings)
         }
     }
 

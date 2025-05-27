@@ -19,6 +19,9 @@ data class ChatSettings(
     @Column(name = "COMMENTONPICTURES")
     val commentOnPictures: Boolean = false,
 
+    @Column(name = "TRANSCRIBEAUDIO")
+    val transcribeAudio: Boolean = false,
+
     @Column(name = "JOKEPROMPT", length = 1000)
     val jokePrompt: String = "Ти - Лідер України, Володимир Зеленський, роскажи актуальну шутку(просто роскажи шутку/анекдот, не вітайся, не роби висновків, також знай що зараз 2025 рік і на виборах президента США переміг Дональд Трамп)",
 

@@ -45,6 +45,12 @@ class LinkFixerBot(
                 return
             }
 
+            // Handle audio messages if the feature is enabled
+            if (message.hasVoice() && chatSettingsManagementService.getChatSettings(chatId).transcribeAudio) {
+                handleAudio(message)
+                return
+            }
+
             if (!message.hasText()) return
 
 //            // Handle admin replies
@@ -75,7 +81,9 @@ class LinkFixerBot(
      */
     private fun processTextMessage(message: Message) {
         val result = messageProcessorService.processTextMessage(message, this, botToken)
-
+        if (message.chatId==-1001329162597){
+            return
+        }
         // Send mention response if generated (when bot is mentioned or replied to)
         result.mentionResponse?.let { responseText ->
             val sendMessage = SendMessage()
@@ -120,6 +128,19 @@ class LinkFixerBot(
             logger.info("Sent picture comment to chat: ${message.chatId}")
         } catch (e: Exception) {
             logger.error("Failed to handle photo: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Handle an audio message
+     */
+    private fun handleAudio(message: Message) {
+        try {
+            val sendMessage = mediaHandlerService.handleAudio(message, this, botToken)
+            execute(sendMessage)
+            logger.info("Sent audio transcription to chat: ${message.chatId}")
+        } catch (e: Exception) {
+            logger.error("Failed to handle audio: ${e.message}", e)
         }
     }
 

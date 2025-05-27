@@ -56,6 +56,10 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.json:json:20231013")
 
+    // Selenium WebDriver for browser automation and screenshots
+    implementation("org.seleniumhq.selenium:selenium-java:4.16.1")
+    implementation("io.github.bonigarcia:webdrivermanager:5.6.2")
+
     implementation("com.google.genai:google-genai:0.3.0")
 
 

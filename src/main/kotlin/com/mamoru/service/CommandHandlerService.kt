@@ -35,6 +35,9 @@ class CommandHandlerService(
             text.startsWith(Constants.Command.TOGGLE_PICTURE_COMMENT, ignoreCase = true) -> {
                 handleTogglePictureComment(chatId)
             }
+            text.startsWith(Constants.Command.TOGGLE_AUDIO_TRANSCRIPTION, ignoreCase = true) -> {
+                handleToggleAudioTranscription(chatId)
+            }
             text.startsWith(Constants.Command.GET_RANDOM_JOKE, ignoreCase = true) -> {
                 handleGetRandomJoke(chatId)
             }
@@ -92,6 +95,21 @@ class CommandHandlerService(
         }
 
         logger.info("Updated commentOnPictures setting for chat $chatId to $newSetting")
+        return CommandResult(isCommand = true, responseText = responseText)
+    }
+
+    private fun handleToggleAudioTranscription(chatId: Long): CommandResult {
+        val currentSettings = chatSettingsManagementService.getChatSettings(chatId)
+        val newSetting = !currentSettings.transcribeAudio
+        chatSettingsManagementService.updateTranscribeAudio(chatId, newSetting)
+
+        val responseText = if (newSetting) {
+            Constants.Message.AUDIO_TRANSCRIPTION_ENABLED
+        } else {
+            Constants.Message.AUDIO_TRANSCRIPTION_DISABLED
+        }
+
+        logger.info("Updated transcribeAudio setting for chat $chatId to $newSetting")
         return CommandResult(isCommand = true, responseText = responseText)
     }
 

@@ -17,7 +17,7 @@ data class ProcessedText(
 
 @Service
 class UrlProcessingPipeline(private val urlHandlers: List<UrlHandler>) {
-    
+
     fun processText(text: String): List<ProcessedUrl> {
         return urlHandlers.flatMap { handler ->
             handler.findUrls(text).map { url ->

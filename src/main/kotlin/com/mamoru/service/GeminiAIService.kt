@@ -7,6 +7,7 @@ import com.mamoru.entity.ChatSettings
 import com.mamoru.util.Constants
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.objects.PhotoSize
+import org.telegram.telegrambots.meta.api.objects.Voice
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.GetFile
 import java.net.URL
@@ -130,11 +131,11 @@ class GeminiAIService(
 
             // Add context from replied message if available
             if (replyText != null) {
-                contentParts.add(Part.fromText("This is the message I'm replying to: $replyText"))
+                contentParts.add(Part.fromText("This is the message I'm replying to: ${replyText.substringAfter("@LinkFixer_Bot")}"))
             }
 
             // Add the current message
-            contentParts.add(Part.fromText("Respond to this message: $messageText"))
+            contentParts.add(Part.fromText("Respond to this message: ${messageText.substringAfter("@LinkFixer_Bot")}"))
 
             // If there's a photo in the replied message, download and include it
             if (replyPhoto != null && bot != null && botToken != null) {
@@ -177,4 +178,43 @@ class GeminiAIService(
         }
     }
 
+    /**
+     * Transcribes an audio message using Gemini AI
+     *
+     * @param voice The Telegram voice object
+     * @param chatId The chat ID
+     * @param bot The Telegram bot instance (needed to download the audio)
+     * @param botToken The Telegram bot token
+     * @return The transcribed text
+     */
+    fun transcribeAudioMessage(voice: Voice, chatId: Long, bot: TelegramLongPollingBot, botToken: String): String {
+        try {
+            // Get the file from Telegram
+            val getFile = GetFile()
+            getFile.fileId = voice.fileId
+            val file = bot.execute(getFile)
+
+            // Download the file
+            val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
+            val audioBytes = URL(fileUrl).readBytes()
+
+            // Create content with audio and instruction
+            val content = Content.fromParts(
+                Part.fromText(Constants.AI.AUDIO_TRANSCRIPTION_INSTRUCTION),
+                Part.fromBytes(audioBytes, "audio/ogg")
+            )
+
+            // Send the request to Gemini
+            val response = client.models.generateContent(
+                defaultModel,
+                content,
+                null
+            )
+
+            return response.text() ?: Constants.AI.DEFAULT_AUDIO_FAILURE_MESSAGE
+        } catch (e: Exception) {
+            logger.error("Error transcribing audio message: ${e.message}", e)
+            return "${Constants.AI.DEFAULT_AUDIO_FAILURE_MESSAGE}: ${e.message}"
+        }
+    }
 }

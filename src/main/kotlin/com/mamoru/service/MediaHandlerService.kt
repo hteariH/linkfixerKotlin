@@ -3,7 +3,9 @@ package com.mamoru.service
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.PhotoSize
+import org.telegram.telegrambots.meta.api.objects.Voice
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo
 import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
@@ -90,7 +92,7 @@ class MediaHandlerService(
                 logger.info("Downloaded and cached TikTok video for URL: $url")
                 return createSendVideoObject(message, downloadedFile)
             }
-            
+
             logger.warn("Failed to download TikTok video from URL: $url")
             return null
         } catch (e: Exception) {
@@ -124,7 +126,7 @@ class MediaHandlerService(
                 logger.info("Downloaded and cached Instagram video for URL: $url")
                 return createSendVideoObject(message, downloadedFile)
             }
-            
+
             logger.warn("Failed to download Instagram video from URL: $url")
             return null
         } catch (e: Exception) {
@@ -146,5 +148,46 @@ class MediaHandlerService(
             .video(InputFile(videoFile))
             .caption("${message.from.userName} sent: ${message.text}")
             .build()
+    }
+
+    /**
+     * Handle an audio message and transcribe it using AI
+     *
+     * @param message The Telegram message containing the voice
+     * @param bot The Telegram bot instance
+     * @param botToken The Telegram bot token
+     * @return The SendMessage object to reply with
+     */
+    fun handleAudio(message: Message, bot: TelegramLongPollingBot, botToken: String): SendMessage {
+        try {
+            // Get the voice object
+            val voice = message.voice
+
+            if (voice != null) {
+                // Transcribe the audio using Gemini
+                val transcription = geminiAIService.transcribeAudioMessage(voice, message.chatId, bot, botToken)
+
+                // Create the transcription as a reply to the audio
+                val sendMessage = SendMessage()
+                sendMessage.setChatId(message.chatId)
+                sendMessage.text = transcription
+                sendMessage.replyToMessageId = message.messageId
+
+                logger.info("Transcribed audio message for chat: ${message.chatId}")
+                return sendMessage
+            } else {
+                logger.warn("No voice found in message for chat: ${message.chatId}")
+                val errorMessage = SendMessage()
+                errorMessage.setChatId(message.chatId)
+                errorMessage.text = "Could not process the audio message"
+                return errorMessage
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to process audio: ${e.message}", e)
+            val errorMessage = SendMessage()
+            errorMessage.setChatId(message.chatId)
+            errorMessage.text = "Failed to process audio: ${e.message}"
+            return errorMessage
+        }
     }
 }
