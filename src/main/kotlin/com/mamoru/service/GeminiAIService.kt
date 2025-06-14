@@ -5,6 +5,12 @@ import com.google.genai.types.Content
 import com.google.genai.types.Part
 import com.mamoru.entity.ChatSettings
 import com.mamoru.util.Constants
+import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import org.json.JSONObject
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.objects.PhotoSize
 import org.telegram.telegrambots.meta.api.objects.Voice
@@ -13,6 +19,11 @@ import org.telegram.telegrambots.meta.api.methods.GetFile
 import java.net.URL
 import java.util.Base64
 import org.slf4j.LoggerFactory
+import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.util.UUID
 
 /**
  * Service for interacting with Google's Gemini AI API
@@ -25,6 +36,7 @@ class GeminiAIService(
     private val logger = LoggerFactory.getLogger(GeminiAIService::class.java)
     private val client = Client()
     private val defaultModel = Constants.AI.DEFAULT_MODEL
+    private val ttsModel = Constants.AI.TTS_MODEL
 
     /**
      * Generates a random joke using Gemini AI
@@ -65,7 +77,12 @@ class GeminiAIService(
      * @param botToken The Telegram bot token
      * @return The generated picture comment
      */
-    fun generatePictureComment(photoSize: PhotoSize, chatId: Long, bot: TelegramLongPollingBot, botToken: String): String {
+    fun generatePictureComment(
+        photoSize: PhotoSize,
+        chatId: Long,
+        bot: TelegramLongPollingBot,
+        botToken: String
+    ): String {
         try {
             // Get the file from Telegram
             val getFile = GetFile()
@@ -112,9 +129,10 @@ class GeminiAIService(
      * @return The generated response text
      */
     fun generateMentionResponse(
-        messageText: String, 
-        chatId: Long, 
-        replyText: String? = null, 
+        messageText: String,
+        chatId: Long,
+        replyText: String? = null,
+        from: String? = null,
         replyPhoto: PhotoSize? = null,
         bot: TelegramLongPollingBot? = null,
         botToken: String? = null
@@ -131,11 +149,35 @@ class GeminiAIService(
 
             // Add context from replied message if available
             if (replyText != null) {
-                contentParts.add(Part.fromText("This is the message I'm replying to: ${replyText.substringAfter("@LinkFixer_Bot")}"))
+                if (from != null) {
+                    if (from.endsWith("linkfixer_bot", true)) {
+                        contentParts.add(
+                            Part.fromText(
+                                "This is the message I'm replying to: ${
+                                    replyText.lowercase().substringAfter("@linkfixer_bot")
+                                }, messege is sent by you"
+                            )
+                        )
+                    } else {
+                        contentParts.add(
+                            Part.fromText(
+                                "This is the message I'm replying to: ${
+                                    replyText.lowercase().substringAfter("@linkfixer_bot")
+                                }, messege is sent by: $from"
+                            )
+                        )
+                    }
+                }
             }
 
             // Add the current message
-            contentParts.add(Part.fromText("Respond to this message: ${messageText.substringAfter("@LinkFixer_Bot")}"))
+            contentParts.add(
+                Part.fromText(
+                    "Respond to this message: ${
+                        messageText.lowercase().substringAfter("@linkfixer_bot")
+                    }"
+                )
+            )
 
             // If there's a photo in the replied message, download and include it
             if (replyPhoto != null && bot != null && botToken != null) {
@@ -217,4 +259,78 @@ class GeminiAIService(
             return "${Constants.AI.DEFAULT_AUDIO_FAILURE_MESSAGE}: ${e.message}"
         }
     }
+
+    fun textToSpeech(
+        text: String,
+        outputFileName: String = "gemini_speech_${UUID.randomUUID()}",
+        voicePreset: String = "alloy"
+    ): String {
+        try {
+            logger.info("Converting text to speech using Gemini 2.5 Flash Preview TTS")
+
+            // Define the request payload
+            val requestJson = """
+        {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": "$text"
+                        }
+                    ]
+                }
+            ],
+            "generation_config": {
+                "voice": "$voicePreset"
+            }
+        }
+        """.trimIndent()
+
+            // Create an OkHttpClient
+            val httpClient = OkHttpClient()
+
+            // Create the request
+            val request = Request.Builder()
+                .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("x-goog-api-key", client.apiKey()) // Get API key from your client
+                .post(RequestBody.create("application/json".toMediaTypeOrNull(), requestJson))
+                .build()
+
+            // Execute the request
+            val response = httpClient.newCall(request).execute()
+
+            if (!response.isSuccessful) {
+                throw IOException("Unexpected response code: ${response.code}")
+            }
+
+            // Extract the audio data from the response
+            val jsonResponse = JSONObject(response.body?.string() ?: "")
+            val candidatesArray = jsonResponse.getJSONArray("candidates")
+            val content = candidatesArray.getJSONObject(0).getJSONObject("content")
+            val parts = content.getJSONArray("parts")
+            val audioBase64 = parts.getJSONObject(0).getJSONObject("audio").getString("data")
+
+            // Decode the Base64 audio data
+            val audioBytes = Base64.getDecoder().decode(audioBase64)
+
+            // Ensure directory exists
+            val outputDir = "data/tts"
+            Files.createDirectories(Paths.get(outputDir))
+
+            // Save the audio file
+            val outputFile = "$outputDir/$outputFileName.mp3"
+            FileOutputStream(outputFile).use { out ->
+                out.write(audioBytes)
+            }
+
+            logger.info("Speech content written to file: $outputFile")
+            return outputFile
+
+        } catch (e: Exception) {
+            logger.error("Error in text-to-speech conversion: ${e.message}", e)
+            throw e
+        }
+    }
+
 }

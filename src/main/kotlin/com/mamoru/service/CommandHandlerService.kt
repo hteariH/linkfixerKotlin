@@ -47,6 +47,9 @@ class CommandHandlerService(
             text.startsWith(Constants.Command.SET_PICTURE_PROMPT, ignoreCase = true) -> {
                 handleSetPicturePrompt(chatId, text)
             }
+            text.startsWith(Constants.Command.TTS, ignoreCase = true) -> {
+                handleTTS(chatId, text)
+            }
             else -> {
                 CommandResult(isCommand = false)
             }
@@ -143,6 +146,27 @@ class CommandHandlerService(
             CommandResult(
                 isCommand = true,
                 responseText = Constants.Message.PICTURE_PROMPT_HELP
+            )
+        }
+    }
+
+    /**
+     * Handle the /tts command to generate a text-to-speech response
+     *
+     * @param chatId The chat ID
+     * @param text The command text including the text to convert to speech
+     * @return CommandResult containing the response text
+     */
+    private fun handleTTS(chatId: Long, text: String): CommandResult {
+        val textToConvert = text.substringAfter(Constants.Command.TTS).trim()
+        return if (textToConvert.isNotEmpty()) {
+            val ttsResponse = geminiAIService.textToSpeech(text)
+            logger.info("Generated TTS response for chat $chatId")
+            CommandResult(isCommand = true, responseText = ttsResponse)
+        } else {
+            CommandResult(
+                isCommand = true,
+                responseText = Constants.Message.TTS_HELP
             )
         }
     }

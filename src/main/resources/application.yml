@@ -26,7 +26,8 @@ spring:
 
 telegram:
   bot:
-    token: <placeholder>
+#    token: 7149292080:AAEHCGnAnHxx7CVsOnIi09YXhXRStVmfk98  #production
+    token: 7665507725:AAFzjOEJYeAS8rifvdd4xCqEJRAtcyqz6Ss
 
 tiktok:
   download:

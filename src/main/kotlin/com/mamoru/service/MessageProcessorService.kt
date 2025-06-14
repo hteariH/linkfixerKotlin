@@ -43,10 +43,11 @@ class MessageProcessorService(
         if (isBotMentioned(text) || isBotRepliedTo(message)) {
             // Extract content from the replied message if available
             val replyToMessage = message.replyToMessage
+            val from = message.replyToMessage.from.userName
             val replyText = replyToMessage?.text
             val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
 
-            val responseText = geminiAIService.generateMentionResponse(text, chatId, replyText, replyPhoto, bot, botToken)
+            val responseText = geminiAIService.generateMentionResponse(text, chatId, replyText,from, replyPhoto, bot, botToken)
             result.mentionResponse = responseText
             logger.info("Generated response for bot mention/reply in chat $chatId")
         }

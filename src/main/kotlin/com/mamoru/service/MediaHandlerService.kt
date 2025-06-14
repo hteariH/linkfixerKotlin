@@ -7,6 +7,7 @@ import org.telegram.telegrambots.meta.api.objects.Voice
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo
+import org.telegram.telegrambots.meta.api.methods.send.SendVoice
 import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.slf4j.LoggerFactory
