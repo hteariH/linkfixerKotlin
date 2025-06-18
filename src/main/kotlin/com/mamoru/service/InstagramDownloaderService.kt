@@ -3,6 +3,7 @@ package com.mamoru.service
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import org.springframework.util.ResourceUtils
 import java.io.BufferedReader
 import java.io.File
 import java.io.IOException
@@ -19,12 +20,33 @@ class InstagramDownloaderService {
     @Value("\${ytdlp.path:yt-dlp}")
     private lateinit var ytdlpPath: String
 
+    private var cookiesPath: String = ""
+
     init {
         try {
             // Create download directory if it doesn't exist
             val dir = File(downloadPath)
             if (!dir.exists()) {
                 dir.mkdirs()
+            }
+
+            // Initialize cookies path
+            try {
+                // First try to load cookies from the root directory of the project
+                val rootCookiesFile = File("/cookies.txt")
+                if (rootCookiesFile.exists()) {
+                    cookiesPath = rootCookiesFile.absolutePath
+                    logger.info("Cookies file found in root directory at: $cookiesPath")
+                } else {
+                    // Fall back to resources directory if not found in root
+                    cookiesPath = ResourceUtils.getFile("classpath:cookies.txt").absolutePath
+                    logger.info("Cookies file found in resources directory at: $cookiesPath")
+                }
+            } catch (e: Exception) {
+                logger.error("Error loading cookies file: ${e.message}", e)
+                // Provide a fallback value to prevent UninitializedPropertyAccessException
+                cookiesPath = ""
+                logger.warn("Using empty cookies path as fallback")
             }
 
             // Check yt-dlp installation on startup
@@ -80,13 +102,28 @@ class InstagramDownloaderService {
             logger.debug("Using output path: $outputPath")
 
             // Build the yt-dlp command
-            val command = listOf(
+            val commandList = mutableListOf(
                 ytdlpPath,
                 instagramUrl,
                 "--no-warnings",
                 "-o", outputPath,
                 "--force-overwrites"  // Overwrite if file exists
             )
+
+//            // Add cookies option only if cookiesPath is not empty
+//            if (cookiesPath.isNotEmpty()) {
+//                commandList.add("--cookies")
+//                commandList.add(cookiesPath)
+//                logger.debug("Using cookies file: $cookiesPath")
+//            } else {
+//                logger.warn("No cookies file specified, authentication may fail")
+//            }
+
+            cookiesPath = "/cookies.txt"
+            commandList.add("--cookies")
+            commandList.add(cookiesPath)
+
+            val command = commandList
 
             logger.debug("Executing command: ${command.joinToString(" ")}")
 
@@ -116,7 +153,7 @@ class InstagramDownloaderService {
                 throw IOException("yt-dlp failed with exit code ${process.exitValue()}: $errorOutput")
             }
 
-            logger.debug("yt-dlp output: $output")
+            logger.debug("yt-dlp output: {}", output)
 
             // Find the downloaded file (extension might vary)
             val parentDir = File(downloadPath)
@@ -161,31 +198,4 @@ class InstagramDownloaderService {
         }
     }
 
-    /**
-     * Get available formats for an Instagram video
-     * This is useful if you want to download specific quality
-     */
-    fun getAvailableFormats(instagramUrl: String): List<String> {
-        try {
-            val command = listOf(
-                ytdlpPath,
-                instagramUrl,
-                "--list-formats",
-                "--no-warnings"
-            )
-
-            val process = ProcessBuilder(command).start()
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-            val output = reader.readText()
-
-            process.waitFor(30, TimeUnit.SECONDS)
-
-            return output.split("\n")
-                .filter { it.isNotBlank() }
-                .toList()
-        } catch (e: Exception) {
-            logger.error("Error getting available formats: ${e.message}", e)
-            return emptyList()
-        }
-    }
 }
