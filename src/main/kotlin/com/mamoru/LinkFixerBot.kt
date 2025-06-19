@@ -3,8 +3,6 @@ package com.mamoru
 import com.mamoru.service.*
 import com.mamoru.service.url.ProcessedText
 import com.mamoru.util.Constants
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.stereotype.Component
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Message
@@ -15,9 +13,9 @@ import org.slf4j.LoggerFactory
 /**
  * Main Telegram bot class that handles incoming updates and delegates processing to specialized services
  */
-@Component
 class LinkFixerBot(
-    @Value("\${telegram.bot.token}") private val botToken: String,
+    private val botToken: String,
+    private val botName: String,
     private val commandHandlerService: CommandHandlerService,
     private val mediaHandlerService: MediaHandlerService,
     private val messageProcessorService: MessageProcessorService,
@@ -27,10 +25,8 @@ class LinkFixerBot(
     private val logger = LoggerFactory.getLogger(LinkFixerBot::class.java)
 
     // Admin chat ID for forwarding messages
-    private val ADMIN_CHAT_ID = Constants.Chat.ADMIN_CHAT_ID
-
     override fun getBotUsername(): String {
-        return "LinkFixerBot" // Replace with your actual bot username
+        return botName
     }
 
     override fun onUpdateReceived(update: Update) {
@@ -80,7 +76,7 @@ class LinkFixerBot(
      * Process a regular text message
      */
     private fun processTextMessage(message: Message) {
-        val result = messageProcessorService.processTextMessage(message, this, botToken)
+        val result = messageProcessorService.processTextMessage(message, this, botToken, botName)
         if (message.chatId==-1001329162597){
             return
         }
@@ -147,36 +143,36 @@ class LinkFixerBot(
     /**
      * Handle a reply from admin to a forwarded message
      */
-    private fun handleAdminReply(message: Message) {
-        val result = messageProcessorService.handleReplyToForwardedMessage(message)
-
-        try {
-            // Send the reply to the original chat
-            result.replyMessage?.let { replyMessage ->
-                execute(replyMessage)
-            }
-
-            // Send confirmation to admin
-            result.confirmationMessage?.let { confirmMessage ->
-                execute(confirmMessage)
-            }
-
-            // Send error message if any
-            result.errorMessage?.let { errorMsg ->
-                execute(errorMsg)
-            }
-        } catch (e: TelegramApiException) {
-            logger.error("Failed to handle admin reply: ${e.message}", e)
-            try {
-                val errorMessage = SendMessage()
-                errorMessage.setChatId(message.chatId)
-                errorMessage.text = "Failed to send reply: ${e.message}"
-                execute(errorMessage)
-            } catch (ex: TelegramApiException) {
-                logger.error("Failed to send error message: ${ex.message}", ex)
-            }
-        }
-    }
+//    private fun handleAdminReply(message: Message) {
+//        val result = messageProcessorService.handleReplyToForwardedMessage(message, botName)
+//
+//        try {
+//            // Send the reply to the original chat
+//            result.replyMessage?.let { replyMessage ->
+//                execute(replyMessage)
+//            }
+//
+//            // Send confirmation to admin
+//            result.confirmationMessage?.let { confirmMessage ->
+//                execute(confirmMessage)
+//            }
+//
+//            // Send error message if any
+//            result.errorMessage?.let { errorMsg ->
+//                execute(errorMsg)
+//            }
+//        } catch (e: TelegramApiException) {
+//            logger.error("Failed to handle admin reply: ${e.message}", e)
+//            try {
+//                val errorMessage = SendMessage()
+//                errorMessage.setChatId(message.chatId)
+//                errorMessage.text = "Failed to send reply: ${e.message}"
+//                execute(errorMessage)
+//            } catch (ex: TelegramApiException) {
+//                logger.error("Failed to send error message: ${ex.message}", ex)
+//            }
+//        }
+//    }
 
     /**
      * Handle processed URLs in a message

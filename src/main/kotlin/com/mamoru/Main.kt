@@ -1,7 +1,9 @@
 package com.mamoru
 
-import com.mamoru.repository.ChatJpaRepository
+import com.mamoru.config.TelegramBotConfig
+import com.mamoru.factory.TelegramBotFactory
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.scheduling.annotation.EnableScheduling
@@ -10,6 +12,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 
 @EnableScheduling
+@EnableConfigurationProperties(TelegramBotConfig::class)
 @SpringBootApplication
 class LinkFixerBotApplication {
 
@@ -21,15 +24,26 @@ class LinkFixerBotApplication {
 
 
     @Bean
-    fun registerBot(telegramBotsApi: TelegramBotsApi, linkFixerBot: LinkFixerBot, chatJpaRepository: ChatJpaRepository): LinkFixerBot {
-        try {
-            telegramBotsApi.registerBot(linkFixerBot)
-            println("Bot started successfully!")
-//            println(chatJpaRepository.findAll());
-        } catch (e: TelegramApiException) {
-            e.printStackTrace()
+    fun registerBots(
+        telegramBotsApi: TelegramBotsApi, 
+        telegramBotConfig: TelegramBotConfig,
+        telegramBotFactory: TelegramBotFactory,
+    ): List<LinkFixerBot> {
+        val registeredBots = mutableListOf<LinkFixerBot>()
+
+        for (botConfig in telegramBotConfig.bots) {
+            try {
+                val bot = telegramBotFactory.createBot(botConfig.name, botConfig.token)
+                telegramBotsApi.registerBot(bot)
+                registeredBots.add(bot)
+                println("Bot ${botConfig.name} started successfully!")
+            } catch (e: TelegramApiException) {
+                println("Failed to start bot ${botConfig.name}: ${e.message}")
+                e.printStackTrace()
+            }
         }
-        return linkFixerBot
+
+        return registeredBots
     }
 }
 

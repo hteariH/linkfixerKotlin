@@ -14,10 +14,9 @@ import kotlin.random.Random
 
 @Service
 class ScheduledMessageService(
-    private val linkFixerBot: LinkFixerBot,
+    private val bots: List<LinkFixerBot>,
     private val chatJpaRepository: ChatJpaRepository,
     @Value("\${scheduled.message.text:Daily reminder: I'm here to fix your links!}")
-    private val scheduledMessageText: String,
     private val videoCacheService: VideoCacheService,
     private val geminiAIService: GeminiAIService
 
@@ -90,7 +89,7 @@ class ScheduledMessageService(
     fun sendDailyMessage() {
         logger.info("Starting scheduled daily message sending")
 //        val chats = chatRepository.getAllChats()
-        val chatsP = chatJpaRepository.findAll();
+        val chatsP = chatJpaRepository.findAll()
         if (chatsP.isEmpty()) {
             logger.info("No active chats found to send the scheduled message")
             return
@@ -108,8 +107,13 @@ class ScheduledMessageService(
         logger.info("Sending scheduled message to ${chatsP.size} chats. Days until target: $daysUntilTarget")
         for (chat in chatsP) {
             if (chat.sendCounterUntilWin) {
-                linkFixerBot.sendMessageToChat(chat.chatId, formattedMessage)
-                logger.info("Sent scheduled message to chat ${chat.chatId}")
+                // Use the first bot to send the message
+                if (bots.isNotEmpty()) {
+                    bots[0].sendMessageToChat(chat.chatId, formattedMessage)
+                    logger.info("Sent scheduled message to chat ${chat.chatId} using bot ${bots[0].getBotUsername()}")
+                } else {
+                    logger.warn("No bots available to send scheduled message to chat ${chat.chatId}")
+                }
             }
         }
 
@@ -121,7 +125,7 @@ class ScheduledMessageService(
     fun sendDailyJokeMessage() {
         logger.info("Starting scheduled daily joke message sending")
 //        val chats = chatRepository.getAllChats()
-        val chatsP = chatJpaRepository.findAll();
+        val chatsP = chatJpaRepository.findAll()
         if (chatsP.isEmpty()) {
             logger.info("No active chats found to send the scheduled message")
             return
@@ -131,8 +135,13 @@ class ScheduledMessageService(
         for (chat in chatsP) {
             if (chat.sendRandomJoke) {
                 // Pass the chatId to getRandomJoke to use the custom prompt for this chat
-                linkFixerBot.sendMessageToChat(chat.chatId, geminiAIService.getRandomJoke(chat.chatId))
-                logger.info("Sent scheduled message with joke to chat ${chat.chatId}")
+                // Use the first bot to send the message
+                if (bots.isNotEmpty()) {
+                    bots[0].sendMessageToChat(chat.chatId, geminiAIService.getRandomJoke(chat.chatId))
+                    logger.info("Sent scheduled message with joke to chat ${chat.chatId} using bot ${bots[0].getBotUsername()}")
+                } else {
+                    logger.warn("No bots available to send scheduled joke message to chat ${chat.chatId}")
+                }
             }
         }
 
