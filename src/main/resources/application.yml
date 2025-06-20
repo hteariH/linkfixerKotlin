@@ -6,8 +6,8 @@ spring:
       maximum-pool-size: 10
     url: jdbc:h2:file:/data/chatdb;AUTO_SERVER=TRUE
     driver-class-name: org.h2.Driver
-    username: sa
-    password: password
+    username: <placeholder>
+    password: <placeholder>
   h2:
     console:
       enabled: true
@@ -25,9 +25,11 @@ spring:
 
 
 telegram:
-  bot:
-#    token: 7149292080:AAEHCGnAnHxx7CVsOnIi09YXhXRStVmfk98  #production
-    token: 7665507725:AAFzjOEJYeAS8rifvdd4xCqEJRAtcyqz6Ss
+  bots:
+    - name: LinkFixer_Bot
+      token: <placeholder>
+    - name: ChatManagerAssistantBot
+      token: <placeholder>
 
 tiktok:
   download:
