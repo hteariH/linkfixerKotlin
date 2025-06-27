@@ -77,10 +77,9 @@ class LinkFixerBot(
      */
     private fun processTextMessage(message: Message) {
         val result = messageProcessorService.processTextMessage(message, this, botToken, botName)
-        if (message.chatId==-1001329162597){
-            return
-        }
+
         // Send mention response if generated (when bot is mentioned or replied to)
+    if (message.chatId!=-1001329162597) {
         result.mentionResponse?.let { responseText ->
             val sendMessage = SendMessage()
             sendMessage.chatId = message.chatId.toString()
@@ -98,6 +97,7 @@ class LinkFixerBot(
         result.jokeResponse?.let { jokeText ->
             sendMessageToChat(message.chatId, jokeText)
         }
+    }
 
         // Handle processed URLs
         result.processedText?.let { processedText ->

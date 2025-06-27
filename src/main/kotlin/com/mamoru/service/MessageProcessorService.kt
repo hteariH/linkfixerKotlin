@@ -32,31 +32,37 @@ class MessageProcessorService(
      * @param botUsername The username of the bot processing the message
      * @return ProcessingResult containing the results of processing
      */
-    fun processTextMessage(message: Message, bot: TelegramLongPollingBot? = null, botToken: String? = null, botUsername: String = "LinkFixer_Bot"): ProcessingResult {
+    fun processTextMessage(
+        message: Message,
+        bot: TelegramLongPollingBot? = null,
+        botToken: String? = null,
+        botUsername: String = "LinkFixer_Bot"
+    ): ProcessingResult {
         val text = message.text
         val chatId = message.chatId
         val result = ProcessingResult()
 
         // Check if the bot is mentioned or replied to
-        if (isBotMentioned(text, botUsername) || isBotRepliedTo(message, botUsername)) {
-            // Extract content from the replied message if available
-            val replyToMessage = message.replyToMessage
-            val from = message.replyToMessage.from.userName
-            val replyText = replyToMessage?.text
-            val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
+        if (message.chatId != -1001329162597) {
+            if (isBotMentioned(text, botUsername) || isBotRepliedTo(message, botUsername)) {
+                // Extract content from the replied message if available
+                val replyToMessage = message.replyToMessage
+                val from = message.replyToMessage.from.userName
+                val replyText = replyToMessage?.text
+                val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
 
-            val responseText = geminiAIService.generateMentionResponse(text, chatId, replyText,from, replyPhoto, bot, botToken)
-            result.mentionResponse = responseText
-            logger.info("Generated response for bot mention/reply in chat $chatId")
+                val responseText =
+                    geminiAIService.generateMentionResponse(text, chatId, replyText, from, replyPhoto, bot, botToken)
+                result.mentionResponse = responseText
+                logger.info("Generated response for bot mention/reply in chat $chatId")
+            } else if (containsZelenskyMention(text) && // Check for Zelensky mentions and possibly send a joke
+                chatSettingsManagementService.getChatSettings(chatId).sendRandomJoke &&
+                Random.nextBoolean()
+            ) {
+                result.jokeResponse = geminiAIService.getRandomJoke(chatId)
+                logger.info("Generated joke response for Zelensky mention in chat $chatId")
+            }
         }
-        // Check for Zelensky mentions and possibly send a joke
-        else if (containsZelenskyMention(text) && 
-            chatSettingsManagementService.getChatSettings(chatId).sendRandomJoke && 
-            Random.nextBoolean()) {
-            result.jokeResponse = geminiAIService.getRandomJoke(chatId)
-            logger.info("Generated joke response for Zelensky mention in chat $chatId")
-        }
-
         // Process URLs in the message
         val processedText = urlProcessingPipeline.processTextAndReplace(text)
         if (processedText.processedUrls.isNotEmpty()) {
@@ -75,7 +81,7 @@ class MessageProcessorService(
 
     /**
      * Check if the bot is mentioned in the message text
-     * 
+     *
      * @param text The message text to check
      * @param botUsername The username of the bot to check for
      */
@@ -85,15 +91,15 @@ class MessageProcessorService(
 
     /**
      * Check if the message is a reply to a message sent by the bot
-     * 
+     *
      * @param message The message to check
      * @param botUsername The username of the bot to check for
      */
     private fun isBotRepliedTo(message: Message, botUsername: String): Boolean {
         val replyToMessage = message.replyToMessage ?: return false
         val replyToUser = replyToMessage.from ?: return false
-        return replyToUser.userName.equals(botUsername, ignoreCase = true) || 
-               replyToUser.isBot && replyToUser.firstName.equals(botUsername, ignoreCase = true)
+        return replyToUser.userName.equals(botUsername, ignoreCase = true) ||
+                replyToUser.isBot && replyToUser.firstName.equals(botUsername, ignoreCase = true)
     }
 
     /**

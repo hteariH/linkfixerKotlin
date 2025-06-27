@@ -8,7 +8,7 @@ import java.util.regex.Pattern
 @Component
 class TikTokUrlHandler : UrlHandler {
     companion object {
-        private val TIKTOK_URL_PATTERN = Pattern.compile("https?://(?:www\\.)?(?:tiktok\\.com|vm\\.tiktok\\.com)/(?:@[^/]+/video/|t/|v/)?([\\w-]+)")
+        private val TIKTOK_URL_PATTERN = Pattern.compile("https?://(?:www\\.)?(?:tiktok\\.com|vm\\.tiktok\\.com|vt\\.tiktok\\.com)/(?:@[^/]+/video/|t/|v/)?([\\w-]+)")
     }
 
     override fun getType(): String = "tiktok"
@@ -25,7 +25,7 @@ class TikTokUrlHandler : UrlHandler {
     override fun convertUrl(url: String): String = url // TikTok URLs don't need conversion
 
     override fun canHandle(url: String): Boolean = 
-        url.contains("tiktok.com") || url.contains("vm.tiktok.com")
+        url.contains("tiktok.com") || url.contains("vm.tiktok.com") || url.contains("vt.tiktok.com")
 }
 
 @Component
@@ -33,9 +33,9 @@ class TwitterUrlHandler : UrlHandler {
     companion object {
         private val TWITTER_URL_PATTERN = Pattern.compile("https?://(?:www\\.)?(?:twitter\\.com|x\\.com)/[^/]+/status/\\d+(?:\\?\\S*)?")
     }
-    
+
     override fun getType(): String = "twitter"
-    
+
     override fun findUrls(text: String): List<String> {
         val matcher = TWITTER_URL_PATTERN.matcher(text)
         val urls = mutableListOf<String>()

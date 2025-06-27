@@ -16,10 +16,8 @@ import kotlin.random.Random
 class ScheduledMessageService(
     private val bots: List<LinkFixerBot>,
     private val chatJpaRepository: ChatJpaRepository,
-    @Value("\${scheduled.message.text:Daily reminder: I'm here to fix your links!}")
     private val videoCacheService: VideoCacheService,
     private val geminiAIService: GeminiAIService
-
 ) {
 
     private val logger = LoggerFactory.getLogger(ScheduledMessageService::class.java)
