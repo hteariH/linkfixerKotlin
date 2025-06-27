@@ -135,7 +135,8 @@ class GeminiAIService(
         from: String? = null,
         replyPhoto: PhotoSize? = null,
         bot: TelegramLongPollingBot? = null,
-        botToken: String? = null
+        botToken: String? = null,
+        botUsername: String = "LinkFixer_Bot"
     ): String {
         try {
             // Get the picture prompt from chat settings
@@ -150,11 +151,11 @@ class GeminiAIService(
             // Add context from replied message if available
             if (replyText != null) {
                 if (from != null) {
-                    if (from.endsWith("linkfixer_bot", true)) {
+                    if (from.endsWith(botUsername.lowercase(), true) || from.equals("Зеленский", true)) {
                         contentParts.add(
                             Part.fromText(
                                 "This is the message I'm replying to: ${
-                                    replyText.lowercase().substringAfter("@linkfixer_bot")
+                                    replyText.replace("@$botUsername", "@Зеленский", ignoreCase = true)
                                 }, messege is sent by you"
                             )
                         )
@@ -162,7 +163,7 @@ class GeminiAIService(
                         contentParts.add(
                             Part.fromText(
                                 "This is the message I'm replying to: ${
-                                    replyText.lowercase().substringAfter("@linkfixer_bot")
+                                    replyText.replace("@$botUsername", "@Зеленский", ignoreCase = true)
                                 }, messege is sent by: $from"
                             )
                         )
@@ -174,7 +175,7 @@ class GeminiAIService(
             contentParts.add(
                 Part.fromText(
                     "Respond to this message: ${
-                        messageText.lowercase().substringAfter("@linkfixer_bot")
+                        messageText.replace("@$botUsername", "@Зеленский", ignoreCase = true)
                     }"
                 )
             )

@@ -52,7 +52,7 @@ class MessageProcessorService(
                 val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
 
                 val responseText =
-                    geminiAIService.generateMentionResponse(text, chatId, replyText, from, replyPhoto, bot, botToken)
+                    geminiAIService.generateMentionResponse(text, chatId, replyText, from, replyPhoto, bot, botToken, botUsername)
                 result.mentionResponse = responseText
                 logger.info("Generated response for bot mention/reply in chat $chatId")
             } else if (containsZelenskyMention(text) && // Check for Zelensky mentions and possibly send a joke
