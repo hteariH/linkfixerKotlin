@@ -155,16 +155,16 @@ class GeminiAIService(
                         contentParts.add(
                             Part.fromText(
                                 "This is the message I'm replying to: ${
-                                    replyText.replace("@$botUsername", "@Зеленский", ignoreCase = true)
-                                }, messege is sent by you"
+                                    replyText.replace("@$botUsername", "Зеленский", ignoreCase = true)
+                                }, message is sent by you"
                             )
                         )
                     } else {
                         contentParts.add(
                             Part.fromText(
                                 "This is the message I'm replying to: ${
-                                    replyText.replace("@$botUsername", "@Зеленский", ignoreCase = true)
-                                }, messege is sent by: $from"
+                                    replyText.replace("@$botUsername", "Зеленский", ignoreCase = true)
+                                }, message is sent by: $from"
                             )
                         )
                     }
@@ -175,7 +175,7 @@ class GeminiAIService(
             contentParts.add(
                 Part.fromText(
                     "Respond to this message: ${
-                        messageText.replace("@$botUsername", "@Зеленский", ignoreCase = true)
+                        messageText.replace("@$botUsername", "Зеленский", ignoreCase = true)
                     }"
                 )
             )

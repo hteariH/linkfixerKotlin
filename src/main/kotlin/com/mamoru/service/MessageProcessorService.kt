@@ -43,7 +43,7 @@ class MessageProcessorService(
         val result = ProcessingResult()
 
         // Check if the bot is mentioned or replied to
-        if (message.chatId != -1001329162597) {
+        if (chatSettingsManagementService.getChatSettings(chatId).commentOnPictures) {
             if (isBotMentioned(text, botUsername) || isBotRepliedTo(message, botUsername)) {
                 // Extract content from the replied message if available
                 val replyToMessage = message.replyToMessage

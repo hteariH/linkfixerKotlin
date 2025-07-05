@@ -36,10 +36,10 @@ class LinkFixerBot(
 
         try {
             // Handle photos if the feature is enabled
-            if (message.hasPhoto() && chatSettingsManagementService.getChatSettings(chatId).commentOnPictures) {
-                handlePhoto(message)
-                return
-            }
+//            if (message.hasPhoto() && chatSettingsManagementService.getChatSettings(chatId).commentOnPictures) {
+//                handlePhoto(message)
+//                return
+//            }
 
             // Handle audio messages if the feature is enabled
             if (message.hasVoice() && chatSettingsManagementService.getChatSettings(chatId).transcribeAudio) {
@@ -79,7 +79,7 @@ class LinkFixerBot(
         val result = messageProcessorService.processTextMessage(message, this, botToken, botName)
 
         // Send mention response if generated (when bot is mentioned or replied to)
-    if (message.chatId!=-1001329162597) {
+    if (chatSettingsManagementService.getChatSettings(message.chatId).commentOnPictures) {
         result.mentionResponse?.let { responseText ->
             val sendMessage = SendMessage()
             sendMessage.chatId = message.chatId.toString()
