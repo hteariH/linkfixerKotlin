@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service
 import java.io.File
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import kotlin.math.log
 import kotlin.random.Random
 
 
@@ -105,10 +106,18 @@ class ScheduledMessageService(
         logger.info("Sending scheduled message to ${chatsP.size} chats. Days until target: $daysUntilTarget")
         for (chat in chatsP) {
             if (chat.sendCounterUntilWin) {
-                // Use the first bot to send the message
                 if (bots.isNotEmpty()) {
-                    bots[0].sendMessageToChat(chat.chatId, formattedMessage)
-                    logger.info("Sent scheduled message to chat ${chat.chatId} using bot ${bots[0].getBotUsername()}")
+                    bots.forEach { bot ->
+                        {
+                            try {
+                                logger.info("Sending scheduled message to chat ${chat.chatId} using bot ${bot.botUsername}")
+                                bot.sendMessageToChat(chat.chatId, formattedMessage)
+                                logger.info("Successfully Sent scheduled message to chat ${chat.chatId} using bot ${bot.botUsername}")
+                            } catch (e: Exception) {
+                                logger.error("FAILED TO SEND SCHEDULED MESSAGE TO CHAT", e)
+                            }
+                        }
+                    }
                 } else {
                     logger.warn("No bots available to send scheduled message to chat ${chat.chatId}")
                 }
