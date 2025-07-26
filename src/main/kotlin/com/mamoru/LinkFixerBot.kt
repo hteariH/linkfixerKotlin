@@ -35,11 +35,6 @@ class LinkFixerBot(
         val chatId = message.chatId
 
         try {
-            // Handle photos if the feature is enabled
-//            if (message.hasPhoto() && chatSettingsManagementService.getChatSettings(chatId).commentOnPictures) {
-//                handlePhoto(message)
-//                return
-//            }
 
             // Handle audio messages if the feature is enabled
             if (message.hasVoice() && chatSettingsManagementService.getChatSettings(chatId).transcribeAudio) {
@@ -48,12 +43,6 @@ class LinkFixerBot(
             }
 
             if (!message.hasText()) return
-
-//            // Handle admin replies
-//            if (message.replyToMessage != null && message.chatId == ADMIN_CHAT_ID) {
-//                handleAdminReply(message)
-//                return
-//            }
 
             // Handle commands
             val commandResult = commandHandlerService.handleCommand(message)
@@ -115,19 +104,6 @@ class LinkFixerBot(
     }
 
     /**
-     * Handle a photo message
-     */
-    private fun handlePhoto(message: Message) {
-        try {
-            val sendMessage = mediaHandlerService.handlePhoto(message, this, botToken)
-            execute(sendMessage)
-            logger.info("Sent picture comment to chat: ${message.chatId}")
-        } catch (e: Exception) {
-            logger.error("Failed to handle photo: ${e.message}", e)
-        }
-    }
-
-    /**
      * Handle an audio message
      */
     private fun handleAudio(message: Message) {
@@ -139,40 +115,6 @@ class LinkFixerBot(
             logger.error("Failed to handle audio: ${e.message}", e)
         }
     }
-
-    /**
-     * Handle a reply from admin to a forwarded message
-     */
-//    private fun handleAdminReply(message: Message) {
-//        val result = messageProcessorService.handleReplyToForwardedMessage(message, botName)
-//
-//        try {
-//            // Send the reply to the original chat
-//            result.replyMessage?.let { replyMessage ->
-//                execute(replyMessage)
-//            }
-//
-//            // Send confirmation to admin
-//            result.confirmationMessage?.let { confirmMessage ->
-//                execute(confirmMessage)
-//            }
-//
-//            // Send error message if any
-//            result.errorMessage?.let { errorMsg ->
-//                execute(errorMsg)
-//            }
-//        } catch (e: TelegramApiException) {
-//            logger.error("Failed to handle admin reply: ${e.message}", e)
-//            try {
-//                val errorMessage = SendMessage()
-//                errorMessage.setChatId(message.chatId)
-//                errorMessage.text = "Failed to send reply: ${e.message}"
-//                execute(errorMessage)
-//            } catch (ex: TelegramApiException) {
-//                logger.error("Failed to send error message: ${ex.message}", ex)
-//            }
-//        }
-//    }
 
     /**
      * Handle processed URLs in a message

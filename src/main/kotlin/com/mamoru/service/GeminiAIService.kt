@@ -3,9 +3,7 @@ package com.mamoru.service
 import com.google.genai.Client
 import com.google.genai.types.Content
 import com.google.genai.types.Part
-import com.mamoru.entity.ChatSettings
 import com.mamoru.util.Constants
-import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -83,25 +81,25 @@ class GeminiAIService(
         bot: TelegramLongPollingBot,
         botToken: String
     ): String {
+
+        // Get the file from Telegram
+        val getFile = GetFile()
+        getFile.fileId = photoSize.fileId
+        val file = bot.execute(getFile)
+
+        // Download the file
+        val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
+        val imageBytes = URL(fileUrl).readBytes()
+
+        // Get the picture prompt from chat settings
+        val picturePrompt = chatSettingsManagementService.getChatSettings(chatId).picturePrompt
+
+        val content = Content.fromParts(
+            Part.fromText(picturePrompt),
+            Part.fromText(Constants.AI.PICTURE_ANALYSIS_INSTRUCTION),
+            Part.fromBytes(imageBytes, "image/jpeg")
+        )
         try {
-            // Get the file from Telegram
-            val getFile = GetFile()
-            getFile.fileId = photoSize.fileId
-            val file = bot.execute(getFile)
-
-            // Download the file
-            val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
-            val imageBytes = URL(fileUrl).readBytes()
-
-            // Get the picture prompt from chat settings
-            val picturePrompt = chatSettingsManagementService.getChatSettings(chatId).picturePrompt
-
-            val content = Content.fromParts(
-                Part.fromText(picturePrompt),
-                Part.fromText(Constants.AI.PICTURE_ANALYSIS_INSTRUCTION),
-                Part.fromBytes(imageBytes, "image/jpeg")
-            )
-
             // Send the request to Gemini
             val response = client.models.generateContent(
                 defaultModel,
@@ -112,7 +110,12 @@ class GeminiAIService(
             return response.text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
         } catch (e: Exception) {
             logger.error("Error generating picture comment: ${e.message}", e)
-            return "${Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE}: ${e.message}"
+            val response = client.models.generateContent(
+                Constants.AI.BACKUP_MODEL,
+                content,
+                null
+            )
+            return response.text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
         }
     }
 
@@ -138,75 +141,75 @@ class GeminiAIService(
         botToken: String? = null,
         botUsername: String = "LinkFixer_Bot"
     ): String {
-        try {
-            // Get the picture prompt from chat settings
-            val picturePrompt = chatSettingsManagementService.getChatSettings(chatId).picturePrompt
 
-            // Create content parts list
-            val contentParts = mutableListOf<Part>()
+        // Get the picture prompt from chat settings
+        val picturePrompt = chatSettingsManagementService.getChatSettings(chatId).picturePrompt
 
-            // Add picture prompt
-            contentParts.add(Part.fromText(picturePrompt))
+        // Create content parts list
+        val contentParts = mutableListOf<Part>()
 
-            // Add context from replied message if available
-            if (replyText != null) {
-                if (from != null) {
-                    if (from.endsWith(botUsername.lowercase(), true) || from.equals("Зеленский", true)) {
-                        contentParts.add(
-                            Part.fromText(
-                                "This is the message I'm replying to: ${
-                                    replyText.replace("@$botUsername", "Зеленский", ignoreCase = true)
-                                }, message is sent by you"
-                            )
+        // Add picture prompt
+        contentParts.add(Part.fromText(picturePrompt))
+
+        // Add context from replied message if available
+        if (replyText != null) {
+            if (from != null) {
+                if (from.endsWith(botUsername.lowercase(), true) || from.equals("Зеленский", true)) {
+                    contentParts.add(
+                        Part.fromText(
+                            "This is the message I'm replying to: ${
+                                replyText.replace("@$botUsername", "", ignoreCase = true)
+                            }, message is sent by you"
                         )
-                    } else {
-                        contentParts.add(
-                            Part.fromText(
-                                "This is the message I'm replying to: ${
-                                    replyText.replace("@$botUsername", "Зеленский", ignoreCase = true)
-                                }, message is sent by: $from"
-                            )
+                    )
+                } else {
+                    contentParts.add(
+                        Part.fromText(
+                            "This is the message I'm replying to: ${
+                                replyText.replace("@$botUsername", "", ignoreCase = true)
+                            }, message is sent by: $from"
                         )
-                    }
+                    )
                 }
             }
+        }
 
-            // Add the current message
-            contentParts.add(
-                Part.fromText(
-                    "Respond to this message: ${
-                        messageText.replace("@$botUsername", "Зеленский", ignoreCase = true)
-                    }"
-                )
+        // Add the current message
+        contentParts.add(
+            Part.fromText(
+                "Respond to this message: ${
+                    messageText.replace("@$botUsername", "", ignoreCase = true)
+                }"
             )
+        )
 
-            // If there's a photo in the replied message, download and include it
-            if (replyPhoto != null && bot != null && botToken != null) {
-                try {
-                    // Get the file from Telegram
-                    val getFile = GetFile()
-                    getFile.fileId = replyPhoto.fileId
-                    val file = bot.execute(getFile)
+        // If there's a photo in the replied message, download and include it
+        if (replyPhoto != null && bot != null && botToken != null) {
+            try {
+                // Get the file from Telegram
+                val getFile = GetFile()
+                getFile.fileId = replyPhoto.fileId
+                val file = bot.execute(getFile)
 
-                    // Download the file
-                    val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
-                    val imageBytes = URL(fileUrl).readBytes()
+                // Download the file
+                val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
+                val imageBytes = URL(fileUrl).readBytes()
 
-                    // Add the photo to the content
-                    contentParts.add(Part.fromText(Constants.AI.PICTURE_ANALYSIS_INSTRUCTION))
-                    contentParts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-                } catch (e: Exception) {
-                    logger.error("Error downloading photo from replied message: ${e.message}", e)
-                    contentParts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I couldn't download it. Please acknowledge this in your response."))
-                }
-            } else if (replyPhoto != null) {
-                // If we have a photo but no bot or token, add a note
-                contentParts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I can't see it right now. Please acknowledge this in your response."))
+                // Add the photo to the content
+                contentParts.add(Part.fromText(Constants.AI.PICTURE_ANALYSIS_INSTRUCTION))
+                contentParts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+            } catch (e: Exception) {
+                logger.error("Error downloading photo from replied message: ${e.message}", e)
+                contentParts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I couldn't download it. Please acknowledge this in your response."))
             }
+        } else if (replyPhoto != null) {
+            // If we have a photo but no bot or token, add a note
+            contentParts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I can't see it right now. Please acknowledge this in your response."))
+        }
 
-            // Create content from parts
-            val content = Content.fromParts(*contentParts.toTypedArray())
-
+        // Create content from parts
+        val content = Content.fromParts(*contentParts.toTypedArray())
+        try {
             // Send the request to Gemini
             val response = client.models.generateContent(
                 defaultModel,
@@ -214,10 +217,18 @@ class GeminiAIService(
                 null
             )
 
-            return response.text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
+            return response.text() ?: client.models.generateContent(
+                Constants.AI.BACKUP_MODEL,
+                content,
+                null
+            ).text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
         } catch (e: Exception) {
             logger.error("Error generating mention response: ${e.message}", e)
-            return "${Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE}: ${e.message}"
+            return client.models.generateContent(
+                Constants.AI.BACKUP_MODEL,
+                content,
+                null
+            ).text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
         }
     }
 

@@ -27,48 +27,6 @@ class MediaHandlerService(
     private val logger = LoggerFactory.getLogger(MediaHandlerService::class.java)
 
     /**
-     * Handle a photo message and generate a comment using AI
-     *
-     * @param message The Telegram message containing the photo
-     * @param bot The Telegram bot instance
-     * @param botToken The Telegram bot token
-     * @return The SendMessage object to reply with
-     */
-    fun handlePhoto(message: Message, bot: TelegramLongPollingBot, botToken: String): SendMessage {
-        try {
-            // Get the largest photo (best quality)
-            val photos = message.photo
-            val largestPhoto = photos.maxByOrNull { it.fileSize }
-
-            if (largestPhoto != null) {
-                // Generate a comment using Gemini with the actual photo
-                val comment = geminiAIService.generatePictureComment(largestPhoto, message.chatId, bot, botToken)
-
-                // Create the comment as a reply to the photo
-                val sendMessage = SendMessage()
-                sendMessage.setChatId(message.chatId)
-                sendMessage.text = comment
-                sendMessage.replyToMessageId = message.messageId
-
-                logger.info("Generated picture comment for chat: ${message.chatId}")
-                return sendMessage
-            } else {
-                logger.warn("No photo found in message for chat: ${message.chatId}")
-                val errorMessage = SendMessage()
-                errorMessage.setChatId(message.chatId)
-                errorMessage.text = "Could not process the photo"
-                return errorMessage
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to process photo: ${e.message}", e)
-            val errorMessage = SendMessage()
-            errorMessage.setChatId(message.chatId)
-            errorMessage.text = "Failed to process photo: ${e.message}"
-            return errorMessage
-        }
-    }
-
-    /**
      * Handle a TikTok URL by downloading and sending the video
      *
      * @param message The Telegram message containing the TikTok URL
