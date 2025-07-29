@@ -5,6 +5,7 @@ import com.mamoru.config.TelegramBotConfig
 import com.mamoru.service.ChatSettingsManagementService
 import com.mamoru.service.CommandHandlerService
 import com.mamoru.service.MediaHandlerService
+import com.mamoru.service.MessageAnalyzerService
 import com.mamoru.service.MessageProcessorService
 import org.springframework.stereotype.Component
 
@@ -16,7 +17,8 @@ class TelegramBotFactory(
     private val commandHandlerService: CommandHandlerService,
     private val mediaHandlerService: MediaHandlerService,
     private val messageProcessorService: MessageProcessorService,
-    private val chatSettingsManagementService: ChatSettingsManagementService
+    private val chatSettingsManagementService: ChatSettingsManagementService,
+    private val messageAnalyzerService: MessageAnalyzerService
 ) {
 
     /**
@@ -29,7 +31,8 @@ class TelegramBotFactory(
             commandHandlerService = commandHandlerService,
             mediaHandlerService = mediaHandlerService,
             messageProcessorService = messageProcessorService,
-            chatSettingsManagementService = chatSettingsManagementService
+            chatSettingsManagementService = chatSettingsManagementService,
+            messageAnalyzerService = messageAnalyzerService
         )
     }
 }

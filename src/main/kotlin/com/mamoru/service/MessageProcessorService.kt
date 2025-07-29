@@ -47,12 +47,20 @@ class MessageProcessorService(
             if (isBotMentioned(text, botUsername) || isBotRepliedTo(message, botUsername)) {
                 // Extract content from the replied message if available
                 val replyToMessage = message.replyToMessage
-                val from = message.replyToMessage.from.userName
+                val from = replyToMessage?.from?.userName
                 val replyText = replyToMessage?.text
                 val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
 
-                val responseText =
+                // Check if this is the target chat for impersonation
+                val responseText = if (chatId == geminiAIService.getTargetChatId()) {
+                    // Use impersonation response for the target chat
+                    val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername)
+                    logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
+                    impersonationResponse
+                } else {
+                    // Use regular mention response for other chats
                     geminiAIService.generateMentionResponse(text, chatId, replyText, from, replyPhoto, bot, botToken, botUsername)
+                }
                 result.mentionResponse = responseText
                 logger.info("Generated response for bot mention/reply in chat $chatId")
             } else if (containsZelenskyMention(text) && // Check for Zelensky mentions and possibly send a joke
@@ -116,7 +124,7 @@ class MessageProcessorService(
     private fun createAdminForwardMessage(message: Message): SendMessage {
         val sendMessage = SendMessage()
         sendMessage.setChatId(ADMIN_CHAT_ID)
-        sendMessage.text = "${message.chatId}: ${message.from.userName}: ${message.text}: ${message.messageId}"
+        sendMessage.text = "${message.chatId}: ${message.from?.userName ?: "unknown"}: ${message.text}: ${message.messageId}"
         return sendMessage
     }
 

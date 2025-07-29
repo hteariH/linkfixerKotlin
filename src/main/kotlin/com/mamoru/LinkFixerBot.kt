@@ -19,7 +19,8 @@ class LinkFixerBot(
     private val commandHandlerService: CommandHandlerService,
     private val mediaHandlerService: MediaHandlerService,
     private val messageProcessorService: MessageProcessorService,
-    private val chatSettingsManagementService: ChatSettingsManagementService
+    private val chatSettingsManagementService: ChatSettingsManagementService,
+    private val messageAnalyzerService: MessageAnalyzerService
 ) : TelegramLongPollingBot(botToken) {
 
     private val logger = LoggerFactory.getLogger(LinkFixerBot::class.java)
@@ -35,6 +36,8 @@ class LinkFixerBot(
         val chatId = message.chatId
 
         try {
+            // Analyze message if it's from the target user (this happens regardless of other processing)
+            messageAnalyzerService.analyzeMessageIfFromTargetUser(message)
 
             // Handle audio messages if the feature is enabled
             if (message.hasVoice() && chatSettingsManagementService.getChatSettings(chatId).transcribeAudio) {

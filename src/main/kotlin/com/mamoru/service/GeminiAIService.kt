@@ -4,6 +4,8 @@ import com.google.genai.Client
 import com.google.genai.types.Content
 import com.google.genai.types.Part
 import com.mamoru.util.Constants
+import org.springframework.beans.factory.annotation.Autowired
+import javax.annotation.PostConstruct
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -31,6 +33,20 @@ import java.util.UUID
 class GeminiAIService(
     private val chatSettingsManagementService: ChatSettingsManagementService
 ) {
+    // Target chat ID for impersonation
+    private val targetChatId = -1002590623139L
+
+    /**
+     * Gets the target chat ID for impersonation
+     * 
+     * @return The target chat ID
+     */
+    fun getTargetChatId(): Long {
+        return targetChatId
+    }
+
+    @Autowired
+    private lateinit var messageAnalyzerService: MessageAnalyzerService
     private val logger = LoggerFactory.getLogger(GeminiAIService::class.java)
     private val client = Client()
     private val defaultModel = Constants.AI.DEFAULT_MODEL
@@ -229,6 +245,111 @@ class GeminiAIService(
                 content,
                 null
             ).text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
+        }
+    }
+
+    /**
+     * Generates a response that impersonates the person whose messages are saved in /data/kiok.txt
+     * 
+     * @param messageText The text of the message to respond to
+     * @param replyText The text of the message being replied to, if any
+     * @param from The username of the person who sent the message being replied to, if any
+     * @param replyPhoto The photo from the message being replied to, if any
+     * @param bot The Telegram bot instance (needed to download the photo)
+     * @param botToken The Telegram bot token
+     * @param botUsername The username of the bot
+     * @return The generated impersonation response
+     */
+    fun generateImpersonationResponse(
+        messageText: String,
+        replyText: String? = null,
+        from: String? = null,
+        replyPhoto: PhotoSize? = null,
+        bot: TelegramLongPollingBot? = null,
+        botToken: String? = null,
+        botUsername: String = "LinkFixer_Bot"
+    ): String {
+        try {
+            // Read the saved messages
+            val savedMessages = messageAnalyzerService.readSavedMessages()
+            if (savedMessages.isNullOrEmpty()) {
+                logger.warn("No saved messages found for impersonation")
+                return "I don't have enough data to impersonate this person."
+            }
+
+            // Create content parts list
+            val contentParts = mutableListOf<Part>()
+
+            // Add impersonation prompt
+            contentParts.add(Part.fromText("""
+                You are now impersonating a person whose messages are provided below. 
+                Your task is to respond to the given message in the same style, tone, and personality as the person you're impersonating.
+                Use the message history to understand their communication style, vocabulary, topics of interest, and personality traits.
+
+                Here is the message history of the person you're impersonating:
+
+                $savedMessages
+
+                Based on this history, respond to the following message as if you were this person.
+            """.trimIndent()))
+
+            // Add context from replied message if available
+            if (replyText != null) {
+                if (from != null) {
+                    contentParts.add(
+                        Part.fromText(
+                            "This is the message I'm replying to: ${
+                                replyText.replace("@$botUsername", "", ignoreCase = true)
+                            }, message is sent by: $from"
+                        )
+                    )
+                }
+            }
+
+            // Add the current message
+            contentParts.add(
+                Part.fromText(
+                    "Respond to this message as the person I'm impersonating: ${
+                        messageText.replace("@$botUsername", "", ignoreCase = true)
+                    }"
+                )
+            )
+
+            // If there's a photo in the replied message, download and include it
+            if (replyPhoto != null && bot != null && botToken != null) {
+                try {
+                    // Get the file from Telegram
+                    val getFile = GetFile()
+                    getFile.fileId = replyPhoto.fileId
+                    val file = bot.execute(getFile)
+
+                    // Download the file
+                    val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
+                    val imageBytes = URL(fileUrl).readBytes()
+
+                    // Add the photo to the content
+                    contentParts.add(Part.fromText("There is an image in the message I'm replying to. Consider it in your response if relevant."))
+                    contentParts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+                } catch (e: Exception) {
+                    logger.error("Error downloading photo from replied message: ${e.message}", e)
+                    contentParts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I couldn't download it."))
+                }
+            }
+
+            // Create content from parts
+            val content = Content.fromParts(*contentParts.toTypedArray())
+
+            // Send the request to Gemini
+            val response = client.models.generateContent(
+                defaultModel,
+                content,
+                null
+            )
+
+            return response.text() ?: "I couldn't generate a response at this time."
+        } catch (e: Exception) {
+            logger.error("Error generating impersonation response: ${e.message}", e)
+            return "I couldn't generate a response at this time."
         }
     }
 
