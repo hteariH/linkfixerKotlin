@@ -108,14 +108,12 @@ class ScheduledMessageService(
             if (chat.sendCounterUntilWin) {
                 if (bots.isNotEmpty()) {
                     bots.forEach { bot ->
-                        {
-                            try {
-                                logger.info("Sending scheduled message to chat ${chat.chatId} using bot ${bot.botUsername}")
-                                bot.sendMessageToChat(chat.chatId, formattedMessage)
-                                logger.info("Successfully Sent scheduled message to chat ${chat.chatId} using bot ${bot.botUsername}")
-                            } catch (e: Exception) {
-                                logger.error("FAILED TO SEND SCHEDULED MESSAGE TO CHAT", e)
-                            }
+                        try {
+                            logger.info("Sending scheduled message to chat ${chat.chatId} using bot ${bot.botUsername}")
+                            bot.sendMessageToChat(chat.chatId, formattedMessage)
+                            logger.info("Successfully Sent scheduled message to chat ${chat.chatId} using bot ${bot.botUsername}")
+                        } catch (e: Exception) {
+                            logger.error("FAILED TO SEND SCHEDULED MESSAGE TO CHAT", e)
                         }
                     }
                 } else {
