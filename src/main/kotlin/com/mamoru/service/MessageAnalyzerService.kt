@@ -76,8 +76,6 @@ class MessageAnalyzerService() {
             val timestamp = LocalDateTime.now().format(dateFormatter)
             val entry = """
                 |
-                |[TIMESTAMP: $timestamp]
-                |[ORIGINAL MESSAGE]
                 |$originalMessage
                 |
                 |----------------------------------------

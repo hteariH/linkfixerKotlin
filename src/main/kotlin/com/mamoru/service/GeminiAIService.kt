@@ -341,7 +341,7 @@ class GeminiAIService(
 
             // Send the request to Gemini
             val response = client.models.generateContent(
-                defaultModel,
+                Constants.AI.BACKUP_MODEL,
                 content,
                 null
             )
