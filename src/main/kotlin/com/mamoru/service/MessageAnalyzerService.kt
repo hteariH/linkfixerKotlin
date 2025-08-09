@@ -113,4 +113,19 @@ class MessageAnalyzerService() {
             return null
         }
     }
+    fun readSavedMessages(userId: Long): String? {
+        try {
+            val file = File("$outputFilePath$userId.txt")
+            if (!file.exists()) {
+                logger.warn("File does not exist: $outputFilePath$userId.txt")
+                return null
+            }
+
+            return Files.readString(Paths.get("$outputFilePath$userId.txt"), StandardCharsets.UTF_8)
+        } catch (e: Exception) {
+            logger.error("Error reading saved messages: ${e.message}", e)
+            return null
+        }
+    }
+
 }

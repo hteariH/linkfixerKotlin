@@ -267,11 +267,12 @@ class GeminiAIService(
         replyPhoto: PhotoSize? = null,
         bot: TelegramLongPollingBot? = null,
         botToken: String? = null,
-        botUsername: String = "LinkFixer_Bot"
+        botUsername: String = "LinkFixer_Bot",
+        userid: Long
     ): String {
         try {
             // Read the saved messages
-            val savedMessages = messageAnalyzerService.readSavedMessages()
+            val savedMessages = messageAnalyzerService.readSavedMessages(userid)
             if (savedMessages.isNullOrEmpty()) {
                 logger.warn("No saved messages found for impersonation")
                 return "I don't have enough data to impersonate this person."
@@ -298,7 +299,7 @@ class GeminiAIService(
                 if (from != null) {
                     contentParts.add(
                         Part.fromText(
-                            "This is the message I'm replying to: ${
+                            "This is your latest message to which someone replied, use it as additional context: ${
                                 replyText.replace("@$botUsername", "", ignoreCase = true)
                             }, message is sent by: $from"
                         )

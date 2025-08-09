@@ -52,17 +52,37 @@ class MessageProcessorService(
                 val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
 
                 // Check if this is the target chat for impersonation
-                val responseText = if (chatId == geminiAIService.getTargetChatId()) {
-                    // Use impersonation response for the target chat
-                    val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername)
-                    logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
-                    impersonationResponse
-                } else {
-                    // Use regular mention response for other chats
-                    geminiAIService.generateMentionResponse(text, chatId, replyText, from, replyPhoto, bot, botToken, botUsername)
+                val responseText = when (chatId) {
+                    geminiAIService.getTargetChatId() -> {
+                        // Use impersonation response for the target chat
+                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 426020724L)
+                        logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
+                        impersonationResponse
+                    }
+
+                    -1001706199236 -> {
+                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 515794581)
+                        logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
+                        impersonationResponse
+                    }
+
+                    else -> {
+                        // Use regular mention response for other chats
+                        geminiAIService.generateMentionResponse(
+                            text,
+                            chatId,
+                            replyText,
+                            from,
+                            replyPhoto,
+                            bot,
+                            botToken,
+                            botUsername
+                        )
+                    }
                 }
                 result.mentionResponse = responseText
                 logger.info("Generated response for bot mention/reply in chat $chatId")
+
             } else if (containsZelenskyMention(text) && // Check for Zelensky mentions and possibly send a joke
                 chatSettingsManagementService.getChatSettings(chatId).sendRandomJoke &&
                 Random.nextBoolean()
