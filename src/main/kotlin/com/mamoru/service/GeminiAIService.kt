@@ -339,15 +339,24 @@ class GeminiAIService(
 
             // Create content from parts
             val content = Content.fromParts(*contentParts.toTypedArray())
-
+        try {
             // Send the request to Gemini
             val response = client.models.generateContent(
-                Constants.AI.BACKUP_MODEL,
+                Constants.AI.DEFAULT_MODEL,
                 content,
                 null
             )
+            return response.text()?:"I couldn't generate a response at this time."
 
-            return response.text() ?: "I couldn't generate a response at this time."
+        } catch ( e: Exception) {
+            return client.models.generateContent(
+                Constants.AI.BACKUP_MODEL,
+                content,
+                null
+            ).text() ?: "I couldn't generate a response at this time."
+        }
+
+
         } catch (e: Exception) {
             logger.error("Error generating impersonation response: ${e.message}", e)
             return "I couldn't generate a response at this time."

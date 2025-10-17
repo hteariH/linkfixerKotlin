@@ -59,7 +59,7 @@ object Constants {
      */
     object AI {
         const val DEFAULT_MODEL = "gemini-2.5-flash"
-        const val BACKUP_MODEL = "gemini-2.5-flash"
+        const val BACKUP_MODEL = "gemini-2.0-flash"
         const val TTS_MODEL = "gemini-2.5-flash-preview-tts"
         const val DEFAULT_JOKE_FAILURE_MESSAGE = "Вибач, я шутку не придумав"
         const val DEFAULT_PICTURE_FAILURE_MESSAGE = "Не можу прокоментувати це зображення"

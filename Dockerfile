@@ -11,6 +11,7 @@ RUN apt-get update && \
         python3-pip \
         curl \
         ffmpeg \
+        dos2unix \
         && apt-get clean \
         && rm -rf /var/lib/apt/lists/*
 
@@ -22,8 +23,8 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
 COPY gradle ./gradle
 COPY gradlew build.gradle.kts settings.gradle.kts ./
 
-# Make the gradlew script executable
-RUN chmod +x ./gradlew
+# Normalize line endings and make the gradlew script executable (fixes /bin/sh: not found on Linux when CRLF present)
+RUN dos2unix ./gradlew && chmod +x ./gradlew
 
 # Download dependencies (this layer will be cached)
 RUN ./gradlew dependencies --no-daemon
