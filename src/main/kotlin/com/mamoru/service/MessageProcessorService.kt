@@ -55,7 +55,10 @@ class MessageProcessorService(
                 val responseText = when (chatId) {
                     geminiAIService.getTargetChatId() -> {
                         // Use impersonation response for the target chat
-                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 426020724L)
+                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 426020724L)//kiok
+//                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 189786389)//wirewood
+//                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 114725695)//tro
+//                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 158637780)//jotun
                         logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
                         impersonationResponse
                     }
