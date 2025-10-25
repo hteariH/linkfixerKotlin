@@ -59,8 +59,10 @@ object Constants {
      */
     object AI {
         const val DEFAULT_MODEL = "gemini-2.5-flash"
-        const val BACKUP_MODEL = "gemini-2.0-flash"
+        const val BACKUP_MODEL = "gemini-2.5-flash-lite"
         const val TTS_MODEL = "gemini-2.5-flash-preview-tts"
+        // Ordered list of models to try for text generation
+        val MODEL_CANDIDATES = listOf("gemini-flash-latest",DEFAULT_MODEL, BACKUP_MODEL,"gemini-2.0-flash")
         const val DEFAULT_JOKE_FAILURE_MESSAGE = "Вибач, я шутку не придумав"
         const val DEFAULT_PICTURE_FAILURE_MESSAGE = "Не можу прокоментувати це зображення"
         const val DEFAULT_AUDIO_FAILURE_MESSAGE = "Не можу розпізнати аудіо повідомлення"

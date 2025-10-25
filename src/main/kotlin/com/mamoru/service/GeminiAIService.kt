@@ -36,6 +36,44 @@ class GeminiAIService(
     // Target chat ID for impersonation
     private val targetChatId = -1002590623139L
 
+    // Helper: try multiple models until one succeeds (Content input)
+    private fun generateWithModels(content: Content, failureMessage: String): String {
+        var lastError: Exception? = null
+        for (model in Constants.AI.MODEL_CANDIDATES) {
+            try {
+                val response = client.models.generateContent(model, content, null)
+                val text = response.text()
+                if (!text.isNullOrBlank()) return text
+            } catch (e: Exception) {
+                lastError = e
+                logger.warn("Model $model failed to generate content: ${e.message}")
+            }
+        }
+        if (lastError != null) {
+            logger.error("All models failed to generate content", lastError)
+        }
+        return failureMessage
+    }
+
+    // Helper: try multiple models until one succeeds (String prompt input)
+    private fun generateWithModels(prompt: String, failureMessage: String): String {
+        var lastError: Exception? = null
+        for (model in Constants.AI.MODEL_CANDIDATES) {
+            try {
+                val response = client.models.generateContent(model, prompt, null)
+                val text = response.text()
+                if (!text.isNullOrBlank()) return text
+            } catch (e: Exception) {
+                lastError = e
+                logger.warn("Model $model failed to generate content: ${e.message}")
+            }
+        }
+        if (lastError != null) {
+            logger.error("All models failed to generate content", lastError)
+        }
+        return failureMessage
+    }
+
     /**
      * Gets the target chat ID for impersonation
      * 
@@ -60,25 +98,13 @@ class GeminiAIService(
      * @return The generated joke text
      */
     fun getRandomJoke(chatId: Long? = null): String {
-        try {
-            // Get the joke prompt from chat settings if chatId is provided
-            val prompt = if (chatId != null) {
-                chatSettingsManagementService.getChatSettings(chatId).jokePrompt
-            } else {
-                Constants.AI.DEFAULT_JOKE_PROMPT
-            }
-
-            val response = client.models.generateContent(
-                defaultModel,
-                prompt,
-                null
-            )
-
-            return response.text() ?: Constants.AI.DEFAULT_JOKE_FAILURE_MESSAGE
-        } catch (e: Exception) {
-            logger.error("Error generating joke: ${e.message}", e)
-            return Constants.AI.DEFAULT_JOKE_FAILURE_MESSAGE
+        // Get the joke prompt from chat settings if chatId is provided
+        val prompt = if (chatId != null) {
+            chatSettingsManagementService.getChatSettings(chatId).jokePrompt
+        } else {
+            Constants.AI.DEFAULT_JOKE_PROMPT
         }
+        return generateWithModels(prompt, Constants.AI.DEFAULT_JOKE_FAILURE_MESSAGE)
     }
 
     /**
@@ -115,24 +141,7 @@ class GeminiAIService(
             Part.fromText(Constants.AI.PICTURE_ANALYSIS_INSTRUCTION),
             Part.fromBytes(imageBytes, "image/jpeg")
         )
-        try {
-            // Send the request to Gemini
-            val response = client.models.generateContent(
-                defaultModel,
-                content,
-                null
-            )
-
-            return response.text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
-        } catch (e: Exception) {
-            logger.error("Error generating picture comment: ${e.message}", e)
-            val response = client.models.generateContent(
-                Constants.AI.BACKUP_MODEL,
-                content,
-                null
-            )
-            return response.text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
-        }
+        return generateWithModels(content, Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE)
     }
 
     /**
@@ -225,27 +234,7 @@ class GeminiAIService(
 
         // Create content from parts
         val content = Content.fromParts(*contentParts.toTypedArray())
-        try {
-            // Send the request to Gemini
-            val response = client.models.generateContent(
-                defaultModel,
-                content,
-                null
-            )
-
-            return response.text() ?: client.models.generateContent(
-                Constants.AI.BACKUP_MODEL,
-                content,
-                null
-            ).text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
-        } catch (e: Exception) {
-            logger.error("Error generating mention response: ${e.message}", e)
-            return client.models.generateContent(
-                Constants.AI.BACKUP_MODEL,
-                content,
-                null
-            ).text() ?: Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE
-        }
+        return generateWithModels(content, Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE)
     }
 
     /**
@@ -339,24 +328,7 @@ class GeminiAIService(
 
             // Create content from parts
             val content = Content.fromParts(*contentParts.toTypedArray())
-        try {
-            // Send the request to Gemini
-            val response = client.models.generateContent(
-                Constants.AI.DEFAULT_MODEL,
-                content,
-                null
-            )
-            return response.text()?:"I couldn't generate a response at this time."
-
-        } catch ( e: Exception) {
-            return client.models.generateContent(
-                Constants.AI.BACKUP_MODEL,
-                content,
-                null
-            ).text() ?: "I couldn't generate a response at this time."
-        }
-
-
+            return generateWithModels(content, "I couldn't generate a response at this time.")
         } catch (e: Exception) {
             logger.error("Error generating impersonation response: ${e.message}", e)
             return "I couldn't generate a response at this time."
@@ -389,14 +361,8 @@ class GeminiAIService(
                 Part.fromBytes(audioBytes, "audio/ogg")
             )
 
-            // Send the request to Gemini
-            val response = client.models.generateContent(
-                defaultModel,
-                content,
-                null
-            )
-
-            return response.text() ?: Constants.AI.DEFAULT_AUDIO_FAILURE_MESSAGE
+            // Send the request to Gemini using model iteration
+            return generateWithModels(content, Constants.AI.DEFAULT_AUDIO_FAILURE_MESSAGE)
         } catch (e: Exception) {
             logger.error("Error transcribing audio message: ${e.message}", e)
             return "${Constants.AI.DEFAULT_AUDIO_FAILURE_MESSAGE}: ${e.message}"
