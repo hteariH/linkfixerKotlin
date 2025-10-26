@@ -9,13 +9,6 @@ class VideoCacheService {
     private val videoCache = ConcurrentHashMap<String, String>()
 
     /**
-     * Check if a TikTok URL has already been processed
-     */
-    fun isVideoCached(tikTokUrl: String): Boolean {
-        return videoCache.containsKey(tikTokUrl)
-    }
-
-    /**
      * Get cached video file path for a TikTok URL
      */
     fun getCachedVideo(tikTokUrl: String): File? {

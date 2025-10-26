@@ -161,31 +161,5 @@ class TikTokDownloaderService {
         }
     }
 
-    /**
-     * Get available formats for a TikTok video
-     * This is useful if you want to download specific quality
-     */
-    fun getAvailableFormats(tikTokUrl: String): List<String> {
-        try {
-            val command = listOf(
-                ytdlpPath,
-                tikTokUrl,
-                "--list-formats",
-                "--no-warnings"
-            )
 
-            val process = ProcessBuilder(command).start()
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-            val output = reader.readText()
-
-            process.waitFor(30, TimeUnit.SECONDS)
-
-            return output.split("\n")
-                .filter { it.isNotBlank() }
-                .toList()
-        } catch (e: Exception) {
-            logger.error("Error getting available formats: ${e.message}", e)
-            return emptyList()
-        }
-    }
 }
