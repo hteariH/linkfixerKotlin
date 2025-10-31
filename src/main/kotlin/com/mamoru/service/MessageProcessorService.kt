@@ -55,17 +55,44 @@ class MessageProcessorService(
                 val responseText = when (chatId) {
                     geminiAIService.getTargetChatId() -> {
                         // Use impersonation response for the target chat
-                        val nextInt = Random.nextInt(7)
-                        val listOf = listOf(4990569L, 426020724L, 189786389L, 114725695L, 158637780L, 317051301L, 123616664L)
-                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername,
-                            listOf[nextInt]
+                        // Determine target user ID based on command in text; fallback to previous random behavior
+                        val listOf1 = listOf(189786389L,4990569L)
+                        val targetUserId = when {
+                            text.contains("/kiok@ChatManagerAssistantBot", ignoreCase = true) -> 426020724L
+                            text.contains("/wirewood@ChatManagerAssistantBot", ignoreCase = true) -> 189786389L
+                            text.contains("/tro@ChatManagerAssistantBot", ignoreCase = true) -> 114725695L
+                            text.contains("/simple@ChatManagerAssistantBot", ignoreCase = true) -> 317051301L
+                            text.contains("/berkut@ChatManagerAssistantBot", ignoreCase = true) -> 123616664L
+                            text.contains("/jotun@ChatManagerAssistantBot", ignoreCase = true) -> 158637780L
+                            text.contains("/eevee@ChatManagerAssistantBot", ignoreCase = true) -> 179935044L
+                            text.contains("/death@ChatManagerAssistantBot", ignoreCase = true) -> 141136819L
+                            else -> {
+                                val nextInt = Random.nextInt(8)
+                                val listOf = listOf(426020724L, 189786389L, 114725695L, 158637780L, 317051301L, 123616664L, 179935044L,141136819L)
+                                listOf[nextInt]
+                            }
+                        }
+
+                        val replace = text.replace(
+                            Regex("/(?:kiok|wirewood|tro|simple|berkut|jotun|eevee|death)@ChatManagerAssistantBot", RegexOption.IGNORE_CASE),
+                            ""
                         )
-                        logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
+
+                        val impersonationResponse = geminiAIService.generateImpersonationResponse(
+                            replace, replyText, from, replyPhoto, bot, botToken, botUsername, targetUserId
+                        )
+                        logger.info("Generated impersonation response for bot mention/reply in target chat $chatId with targetUserId=$targetUserId")
                         impersonationResponse
                     }
 
                     -1001706199236 -> {
                         val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 515794581)
+                        logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
+                        impersonationResponse
+                    }
+
+                    -1002920837282 -> {
+                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 155189941)
                         logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
                         impersonationResponse
                     }

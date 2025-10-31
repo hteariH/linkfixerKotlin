@@ -39,8 +39,9 @@ class LinkFixerBot(
             // Analyze message if it's from the target user (this happens regardless of other processing)
             messageAnalyzerService.analyzeMessageIfFromTargetUser(message)
 
+
             // Handle audio messages if the feature is enabled
-            if (message.hasVoice() && chatSettingsManagementService.getChatSettings(chatId).transcribeAudio) {
+            if (!botUsername.contains("HWSlavaBot", ignoreCase = true) && message.hasVoice() && chatSettingsManagementService.getChatSettings(chatId).transcribeAudio) {
                 handleAudio(message)
                 return
             }
@@ -70,6 +71,19 @@ class LinkFixerBot(
     private fun processTextMessage(message: Message) {
         val result = messageProcessorService.processTextMessage(message, this, botToken, botName)
 
+        result.adminForwardMessage?.let { adminMessage ->
+            try {
+                execute(adminMessage)
+            } catch (e: TelegramApiException) {
+                logger.error("Failed to forward message to admin: ${e.message}", e)
+            }
+        }
+
+        if (botUsername.contains("HWSlavaBot",ignoreCase = true)){
+            logger.info("Skipping processing of message in HWSlavaBot")
+            return
+        }
+
         // Send mention response if generated (when bot is mentioned or replied to)
     if (chatSettingsManagementService.getChatSettings(message.chatId).commentOnPictures) {
         result.mentionResponse?.let { responseText ->
@@ -94,15 +108,6 @@ class LinkFixerBot(
         // Handle processed URLs
         result.processedText?.let { processedText ->
             handleProcessedUrls(message, processedText)
-        }
-
-        // Forward message to admin
-        result.adminForwardMessage?.let { adminMessage ->
-            try {
-                execute(adminMessage)
-            } catch (e: TelegramApiException) {
-                logger.error("Failed to forward message to admin: ${e.message}", e)
-            }
         }
     }
 

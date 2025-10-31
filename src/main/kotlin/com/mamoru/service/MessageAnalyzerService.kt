@@ -38,7 +38,7 @@ class MessageAnalyzerService() {
 //        if (userId != targetUserId) return false
 
         logger.info("Saving message from user (ID: $userId)")
-
+        if (message.text.contains("@ChatManagerAssistantBot")) return false
         try {
             // Save the message to file
             saveMessageToFile(message.text, userId)
