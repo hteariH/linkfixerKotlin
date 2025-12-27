@@ -84,15 +84,18 @@ class MessageProcessorService(
                         logger.info("Generated impersonation response for bot mention/reply in target chat $chatId with targetUserId=$targetUserId")
                         impersonationResponse
                     }
-
+                    // чайка таун
                     -1001706199236 -> {
-                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 515794581)
+                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 515794581)//влад
+//                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 455020673)//старлайт
                         logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
                         impersonationResponse
                     }
 
                     -1002920837282 -> {
-                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 155189941)
+//                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 155189941)//artem
+//                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 624397093)//glist
+                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 6374805034)//sammy
                         logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
                         impersonationResponse
                     }
