@@ -32,15 +32,27 @@ class InstagramDownloaderService {
 
             // Initialize cookies path
             try {
-                // First try to load cookies from the root directory of the project
-                val rootCookiesFile = File("/cookies.txt")
-                if (rootCookiesFile.exists()) {
-                    cookiesPath = rootCookiesFile.absolutePath
-                    logger.info("Cookies file found in root directory at: $cookiesPath")
+                // First try to load cookies from the current directory
+                val currentDirCookiesFile = File("cookies.txt")
+                if (currentDirCookiesFile.exists()) {
+                    cookiesPath = currentDirCookiesFile.absolutePath
+                    logger.info("Cookies file found in current directory at: $cookiesPath")
                 } else {
-                    // Fall back to resources directory if not found in root
-                    cookiesPath = ResourceUtils.getFile("classpath:cookies.txt").absolutePath
-                    logger.info("Cookies file found in resources directory at: $cookiesPath")
+                    // Try to load cookies from the root directory
+                    val rootCookiesFile = File("/cookies.txt")
+                    if (rootCookiesFile.exists()) {
+                        cookiesPath = rootCookiesFile.absolutePath
+                        logger.info("Cookies file found in root directory at: $cookiesPath")
+                    } else {
+                        // Fall back to resources directory
+                        try {
+                            cookiesPath = ResourceUtils.getFile("classpath:cookies.txt").absolutePath
+                            logger.info("Cookies file found in resources directory at: $cookiesPath")
+                        } catch (e: Exception) {
+                            logger.warn("Cookies file not found in resources: ${e.message}")
+                            cookiesPath = ""
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 logger.error("Error loading cookies file: ${e.message}", e)
@@ -68,8 +80,10 @@ class InstagramDownloaderService {
         val patterns = listOf(
             "instagram\\.com/p/([\\w-]+)".toRegex(),     // Post format
             "instagram\\.com/reel/([\\w-]+)".toRegex(),  // Reel format
+            "instagram\\.com/reels/([\\w-]+)".toRegex(),  // Reel format
             "instagr\\.am/p/([\\w-]+)".toRegex(),        // Short post format
-            "instagr\\.am/reel/([\\w-]+)".toRegex()      // Short reel format
+            "instagr\\.am/reel/([\\w-]+)".toRegex(),    // Short reel format
+            "instagr\\.am/reels/([\\w-]+)".toRegex()      // Short reel format
         )
 
         for (pattern in patterns) {
@@ -150,16 +164,21 @@ class InstagramDownloaderService {
                 val errorOutput = BufferedReader(InputStreamReader(process.errorStream))
                     .readText()
                 logger.error("yt-dlp failed with exit code ${process.exitValue()}: $errorOutput")
+                logger.info("yt-dlp standard output: $output")
                 throw IOException("yt-dlp failed with exit code ${process.exitValue()}: $errorOutput")
             }
 
-            logger.debug("yt-dlp output: {}", output)
+            logger.info("yt-dlp output: $output")
 
-            // Find the downloaded file (extension might vary)
+            // Find the downloaded file (prefer video extensions)
             val parentDir = File(downloadPath)
-            val downloadedFile = parentDir.listFiles { file ->
+            val files = parentDir.listFiles { file ->
                 file.name.startsWith("instagram_$videoId")
-            }?.firstOrNull()
+            }
+            
+            val downloadedFile = files?.find { it.extension.lowercase() in listOf("mp4", "mkv", "webm", "mov") }
+                ?: files?.firstOrNull { it.extension.lowercase() !in listOf("jpg", "jpeg", "png", "webp") }
+                ?: files?.firstOrNull()
 
             if (downloadedFile == null) {
                 logger.error("Could not find downloaded file for video ID: $videoId")

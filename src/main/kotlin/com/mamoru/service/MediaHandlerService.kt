@@ -12,6 +12,16 @@ import org.telegram.telegrambots.meta.api.objects.InputFile
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.slf4j.LoggerFactory
 import java.io.File
+import com.mamoru.util.Constants
+
+/**
+ * Result of processing media
+ */
+sealed class MediaProcessingResult {
+    data class Video(val sendVideo: SendVideo) : MediaProcessingResult()
+    data class Link(val message: SendMessage) : MediaProcessingResult()
+    object Error : MediaProcessingResult()
+}
 
 /**
  * Service for handling media in Telegram messages (photos and videos)
@@ -31,15 +41,15 @@ class MediaHandlerService(
      *
      * @param message The Telegram message containing the TikTok URL
      * @param url The TikTok URL to process
-     * @return The SendVideo object or null if processing failed
+     * @return The MediaProcessingResult
      */
-    fun handleTikTokUrl(message: Message, url: String): SendVideo? {
+    fun handleTikTokUrl(message: Message, url: String): MediaProcessingResult {
         try {
             // Check if video is already in cache
             val cachedVideo = videoCacheService.getCachedVideo(url)
             if (cachedVideo != null) {
                 logger.info("Using cached TikTok video for URL: $url")
-                return createSendVideoObject(message, cachedVideo)
+                return MediaProcessingResult.Video(createSendVideoObject(message, cachedVideo))
             }
 
             // Download video if not cached
@@ -49,14 +59,14 @@ class MediaHandlerService(
                 // Cache the video for future use
                 videoCacheService.cacheVideo(url, downloadedFile)
                 logger.info("Downloaded and cached TikTok video for URL: $url")
-                return createSendVideoObject(message, downloadedFile)
+                return MediaProcessingResult.Video(createSendVideoObject(message, downloadedFile))
             }
 
             logger.warn("Failed to download TikTok video from URL: $url")
-            return null
+            return MediaProcessingResult.Error
         } catch (e: Exception) {
             logger.error("Failed to process TikTok video: ${e.message}", e)
-            return null
+            return MediaProcessingResult.Error
         }
     }
 
@@ -65,15 +75,15 @@ class MediaHandlerService(
      *
      * @param message The Telegram message containing the Instagram URL
      * @param url The Instagram URL to process
-     * @return The SendVideo object or null if processing failed
+     * @return The MediaProcessingResult
      */
-    fun handleInstagramUrl(message: Message, url: String): SendVideo? {
+    fun handleInstagramUrl(message: Message, url: String): MediaProcessingResult {
         try {
             // Check if video is already in cache
             val cachedVideo = videoCacheService.getCachedVideo(url)
             if (cachedVideo != null) {
                 logger.info("Using cached Instagram video for URL: $url")
-                return createSendVideoObject(message, cachedVideo)
+                return processInstagramVideo(message, cachedVideo)
             }
 
             // Download video if not cached
@@ -83,15 +93,31 @@ class MediaHandlerService(
                 // Cache the video for future use
                 videoCacheService.cacheVideo(url, downloadedFile)
                 logger.info("Downloaded and cached Instagram video for URL: $url")
-                return createSendVideoObject(message, downloadedFile)
+                return processInstagramVideo(message, downloadedFile)
             }
 
             logger.warn("Failed to download Instagram video from URL: $url")
-            return null
+            return MediaProcessingResult.Error
         } catch (e: Exception) {
             logger.error("Failed to process Instagram video: ${e.message}", e)
-            return null
+            return MediaProcessingResult.Error
         }
+    }
+
+    /**
+     * Process an Instagram video file: always send as link with preview page
+     */
+    private fun processInstagramVideo(message: Message, videoFile: File): MediaProcessingResult {
+        logger.info("Instagram video size: ${videoFile.length() / (1024.0 * 1024.0)} MB")
+        logger.info("Sending Instagram video as link to preview page")
+        
+        val previewUrl = "${Constants.Media.BASE_URL}/instagram?video=${videoFile.name}"
+        val sendMessage = SendMessage.builder()
+            .chatId(message.chatId)
+            .text("${message.from.userName} sent an Instagram video: $previewUrl")
+            .replyToMessageId(message.messageId)
+            .build()
+        return MediaProcessingResult.Link(sendMessage)
     }
 
     /**

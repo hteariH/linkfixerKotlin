@@ -113,16 +113,21 @@ class TikTokDownloaderService {
                 val errorOutput = BufferedReader(InputStreamReader(process.errorStream))
                     .readText()
                 logger.error("yt-dlp failed with exit code ${process.exitValue()}: $errorOutput")
+                logger.info("yt-dlp standard output: $output")
                 throw IOException("yt-dlp failed with exit code ${process.exitValue()}: $errorOutput")
             }
 
-            logger.debug("yt-dlp output: $output")
+            logger.info("yt-dlp output: $output")
 
-            // Find the downloaded file (extension might vary)
+            // Find the downloaded file (prefer video extensions)
             val parentDir = File(downloadPath)
-            val downloadedFile = parentDir.listFiles { file ->
+            val files = parentDir.listFiles { file ->
                 file.name.startsWith("tiktok_$videoId")
-            }?.firstOrNull()
+            }
+            
+            val downloadedFile = files?.find { it.extension.lowercase() in listOf("mp4", "mkv", "webm", "mov") }
+                ?: files?.firstOrNull { it.extension.lowercase() !in listOf("jpg", "jpeg", "png", "webp") }
+                ?: files?.firstOrNull()
 
             if (downloadedFile == null) {
                 logger.error("Could not find downloaded file for video ID: $videoId")

@@ -1,6 +1,7 @@
 package com.mamoru
 
 import com.mamoru.service.*
+import com.mamoru.service.MediaProcessingResult
 import com.mamoru.service.url.ProcessedText
 import com.mamoru.util.Constants
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
@@ -132,28 +133,12 @@ class LinkFixerBot(
         for (processedUrl in processedUrls) {
             when (processedUrl.type) {
                 Constants.UrlType.TIKTOK -> {
-                    val sendVideo = mediaHandlerService.handleTikTokUrl(message, processedUrl.original)
-                    if (sendVideo != null) {
-                        try {
-                            execute(sendVideo)
-                            logger.info("Sent TikTok video to chat: ${message.chatId}")
-                        } catch (e: TelegramApiException) {
-                            logger.error("Failed to send TikTok video: ${e.message}", e)
-                            sendMessageToChat(message.chatId, "Failed to send TikTok video: ${e.message}")
-                        }
-                    }
+                    val result = mediaHandlerService.handleTikTokUrl(message, processedUrl.original)
+                    handleMediaProcessingResult(message, result, "TikTok")
                 }
                 Constants.UrlType.INSTAGRAM -> {
-                    val sendVideo = mediaHandlerService.handleInstagramUrl(message, processedUrl.original)
-                    if (sendVideo != null) {
-                        try {
-                            execute(sendVideo)
-                            logger.info("Sent Instagram video to chat: ${message.chatId}")
-                        } catch (e: TelegramApiException) {
-                            logger.error("Failed to send Instagram video: ${e.message}", e)
-                            sendMessageToChat(message.chatId, "Failed to send Instagram video: ${e.message}")
-                        }
-                    }
+                    val result = mediaHandlerService.handleInstagramUrl(message, processedUrl.original)
+                    handleMediaProcessingResult(message, result, "Instagram")
                 }
                 Constants.UrlType.TWITTER -> {
                     if (processedUrl.original != processedUrl.converted) {
@@ -161,6 +146,34 @@ class LinkFixerBot(
                         return
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Handle the result of media processing (video or link)
+     */
+    private fun handleMediaProcessingResult(message: Message, result: MediaProcessingResult, type: String) {
+        when (result) {
+            is MediaProcessingResult.Video -> {
+                try {
+                    execute(result.sendVideo)
+                    logger.info("Sent $type video to chat: ${message.chatId}")
+                } catch (e: TelegramApiException) {
+                    logger.error("Failed to send $type video: ${e.message}", e)
+                    sendMessageToChat(message.chatId, "Failed to send $type video: ${e.message}")
+                }
+            }
+            is MediaProcessingResult.Link -> {
+                try {
+                    execute(result.message)
+                    logger.info("Sent $type link to chat: ${message.chatId}")
+                } catch (e: TelegramApiException) {
+                    logger.error("Failed to send $type link: ${e.message}", e)
+                }
+            }
+            is MediaProcessingResult.Error -> {
+                logger.warn("Failed to process $type media for message in chat: ${message.chatId}")
             }
         }
     }

@@ -57,7 +57,7 @@ class TwitterUrlHandler : UrlHandler {
 @Component
 class InstagramUrlHandler : UrlHandler {
     companion object {
-        private val INSTAGRAM_URL_PATTERN = Pattern.compile("https?://(?:www\\.)?(?:instagram\\.com|instagr\\.am)/(?:p|reel)/([\\w-]+)/?(?:\\?\\S*)?")
+        private val INSTAGRAM_URL_PATTERN = Pattern.compile("https?://(?:www\\.)?(?:instagram\\.com|instagr\\.am)/(?:p|reel|reels)/([\\w-]+)/?(?:\\?\\S*)?")
     }
 
     override fun getType(): String = "instagram"
