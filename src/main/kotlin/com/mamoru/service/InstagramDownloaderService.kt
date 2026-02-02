@@ -68,8 +68,10 @@ class InstagramDownloaderService {
         val patterns = listOf(
             "instagram\\.com/p/([\\w-]+)".toRegex(),     // Post format
             "instagram\\.com/reel/([\\w-]+)".toRegex(),  // Reel format
+            "instagram\\.com/reels([\\w-]+)".toRegex(),  // Reel format
             "instagr\\.am/p/([\\w-]+)".toRegex(),        // Short post format
-            "instagr\\.am/reel/([\\w-]+)".toRegex()      // Short reel format
+            "instagr\\.am/reel/([\\w-]+)".toRegex(),      // Short reel format
+            "instagr\\.am/reels/([\\w-]+)".toRegex()      // Short reel format
         )
 
         for (pattern in patterns) {
