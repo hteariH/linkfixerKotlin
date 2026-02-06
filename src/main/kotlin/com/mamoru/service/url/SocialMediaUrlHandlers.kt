@@ -22,7 +22,12 @@ class TikTokUrlHandler : UrlHandler {
         return urls
     }
 
-    override fun convertUrl(url: String): String = url // TikTok URLs don't need conversion
+    override fun convertUrl(url: String): String {
+        return url.replace("vm.tiktok.com", "kktiktok.com")
+            .replace("vt.tiktok.com", "kktiktok.com")
+            .replace("https://tiktok.com", "https://kktiktok.com")
+            .replace("www.tiktok.com", "kktiktok.com")
+    }
 
     override fun canHandle(url: String): Boolean = 
         url.contains("tiktok.com") || url.contains("vm.tiktok.com") || url.contains("vt.tiktok.com")

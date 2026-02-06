@@ -59,10 +59,10 @@ class MessageAnalyzerService() {
     private fun saveMessageToFile(originalMessage: String, userId: Long) {
         try {
             // Create directory if it doesn't exist
-            val directory = File("/data")
+            val directory = File("data")
             if (!directory.exists()) {
                 directory.mkdirs()
-                logger.info("Created directory: /data")
+                logger.info("Created directory: data")
             }
 
             // Create file if it doesn't exist
@@ -107,7 +107,13 @@ class MessageAnalyzerService() {
                 return null
             }
 
-            return Files.readString(Paths.get("$outputFilePath$targetUserId.txt"), StandardCharsets.UTF_8)
+            val content = Files.readString(Paths.get("$outputFilePath$targetUserId.txt"), StandardCharsets.UTF_8)
+            val maxLength = 150000
+            return if (content.length > maxLength) {
+                content.substring(content.length - maxLength)
+            } else {
+                content
+            }
         } catch (e: Exception) {
             logger.error("Error reading saved messages: ${e.message}", e)
             return null
@@ -121,7 +127,13 @@ class MessageAnalyzerService() {
                 return null
             }
 
-            return Files.readString(Paths.get("$outputFilePath$userId.txt"), StandardCharsets.UTF_8)
+            val content = Files.readString(Paths.get("$outputFilePath$userId.txt"), StandardCharsets.UTF_8)
+            val maxLength = 150000
+            return if (content.length > maxLength) {
+                content.substring(content.length - maxLength)
+            } else {
+                content
+            }
         } catch (e: Exception) {
             logger.error("Error reading saved messages: ${e.message}", e)
             return null

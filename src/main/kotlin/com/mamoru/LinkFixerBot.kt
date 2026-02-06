@@ -139,8 +139,10 @@ class LinkFixerBot(
                             logger.info("Sent TikTok video to chat: ${message.chatId}")
                         } catch (e: TelegramApiException) {
                             logger.error("Failed to send TikTok video: ${e.message}", e)
-                            sendMessageToChat(message.chatId, "Failed to send TikTok video: ${e.message}")
+                            sendMessageToChat(message.chatId, processedUrl.converted)
                         }
+                    } else {
+                        sendMessageToChat(message.chatId, processedUrl.converted)
                     }
                 }
                 Constants.UrlType.INSTAGRAM -> {
@@ -151,13 +153,15 @@ class LinkFixerBot(
                             logger.info("Sent Instagram video to chat: ${message.chatId}")
                         } catch (e: TelegramApiException) {
                             logger.error("Failed to send Instagram video: ${e.message}", e)
-                            sendMessageToChat(message.chatId, "Failed to send Instagram video: ${e.message}")
+                            sendMessageToChat(message.chatId, processedUrl.converted)
                         }
+                    } else {
+                        sendMessageToChat(message.chatId, processedUrl.converted)
                     }
                 }
                 Constants.UrlType.TWITTER -> {
                     if (processedUrl.original != processedUrl.converted) {
-                        sendMessageToChat(message.chatId, processedText.modifiedText)
+                        sendMessageToChat(message.chatId, processedUrl.converted)
                         return
                     }
                 }
