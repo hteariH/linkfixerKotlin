@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [ vps ]
+    branches: [ master ]
 
 env:
   REGISTRY: ghcr.io
