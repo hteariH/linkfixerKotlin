@@ -14,7 +14,7 @@ logging:
     name: /data/logs/linkfixer.log
   logback:
     rollingpolicy:
-      max-file-size: 10MB
+      max-file-size: 100MB
       max-history: 7
   level:
     root: INFO
