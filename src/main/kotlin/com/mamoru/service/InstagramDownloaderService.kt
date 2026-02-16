@@ -32,15 +32,22 @@ class InstagramDownloaderService {
 
             // Initialize cookies path
             try {
-                // First try to load cookies from the root directory of the project
-                val rootCookiesFile = File("/cookies.txt")
-                if (rootCookiesFile.exists()) {
-                    cookiesPath = rootCookiesFile.absolutePath
-                    logger.info("Cookies file found in root directory at: $cookiesPath")
+                // First try to load cookies from /data/cookies.txt (mounted volume)
+                val dataCookiesFile = File("/data/cookies.txt")
+                if (dataCookiesFile.exists()) {
+                    cookiesPath = dataCookiesFile.absolutePath
+                    logger.info("Cookies file found in /data/ directory at: $cookiesPath")
                 } else {
-                    // Fall back to resources directory if not found in root
-                    cookiesPath = ResourceUtils.getFile("classpath:cookies.txt").absolutePath
-                    logger.info("Cookies file found in resources directory at: $cookiesPath")
+                    // Then try root directory
+                    val rootCookiesFile = File("/cookies.txt")
+                    if (rootCookiesFile.exists()) {
+                        cookiesPath = rootCookiesFile.absolutePath
+                        logger.info("Cookies file found in root directory at: $cookiesPath")
+                    } else {
+                        // Fall back to resources directory if not found
+                        cookiesPath = ResourceUtils.getFile("classpath:cookies.txt").absolutePath
+                        logger.info("Cookies file found in resources directory at: $cookiesPath")
+                    }
                 }
             } catch (e: Exception) {
                 logger.error("Error loading cookies file: ${e.message}", e)
@@ -121,9 +128,10 @@ class InstagramDownloaderService {
 //                logger.warn("No cookies file specified, authentication may fail")
 //            }
 
-            cookiesPath = "/cookies.txt"
-            commandList.add("--cookies")
-            commandList.add(cookiesPath)
+            if (cookiesPath.isNotEmpty()) {
+                commandList.add("--cookies")
+                commandList.add(cookiesPath)
+            }
 
             val command = commandList
 

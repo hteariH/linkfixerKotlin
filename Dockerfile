@@ -37,9 +37,6 @@ RUN ./gradlew build --no-daemon
 
 # Set environment variables
 ENV DOWNLOADS_DIR="/data/downloads"
-COPY cookies.txt /cookies.txt
-COPY cookies.txt /app/cookies.txt
-COPY cookies.txt /data/cookies.txt
 # Create a downloads directory for storing cached videos
 RUN mkdir -p $DOWNLOADS_DIR
 
