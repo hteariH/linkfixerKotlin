@@ -11,7 +11,7 @@ spring:
 
 logging:
   file:
-    name: /data/logs/app.log
+    name: /data/logs/linkfixer.log
   logback:
     rollingpolicy:
       max-file-size: 10MB
