@@ -52,23 +52,24 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           script: |
             # Authenticate server with GHCR (Only needed once, or use a PAT)
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # Pull the new image
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ env.IMAGE_TAG }}
+            sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ env.IMAGE_TAG }}
             
             # Stop and remove the old container
-            docker stop my-app || true
-            docker rm my-app || true
+            sudo docker stop my-app || true
+            sudo docker rm my-app || true
             
             # Ensure data directory exists
-            mkdir -p /opt/linkfixer/data
+            sudo mkdir -p /opt/linkfixer/data
+            sudo chown -R $USER:$USER /opt/linkfixer/data
             
             # Create cookies.txt from secret
             echo "${{ secrets.COOKIES_CONTENT }}" > /opt/linkfixer/data/cookies.txt
 
             # Run the new version
-            docker run -d \
+            sudo docker run -d \
               --name my-app \
               -p 8080:8080 \
               --restart always \
