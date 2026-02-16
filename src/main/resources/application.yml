@@ -20,7 +20,7 @@ logging:
     root: INFO
     com.mamoru: DEBUG
     org.springframework: INFO
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: INFO
   h2:
     console:
       enabled: true
