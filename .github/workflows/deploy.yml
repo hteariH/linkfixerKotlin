@@ -10,8 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: linkfixerkotlin
-
+  IMAGE_TAG: latest
 
 jobs:
   build-and-push:
@@ -19,6 +18,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set lower case owner name
+        run: |
+          echo "IMAGE_REPO=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -32,11 +35,15 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ env.IMAGE_TAG }}
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - name: Set lower case owner name
+        run: |
+          echo "IMAGE_REPO=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -48,7 +55,7 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # Pull the new image
-            docker pull ghcr.io/${{ github.repository_owner }}/linkfixerkotlin:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ env.IMAGE_TAG }}
             
             # Stop and remove the old container
             docker stop my-app || true
@@ -71,4 +78,4 @@ jobs:
               -e BOT_TOKEN_1="${{ secrets.BOT_TOKEN_1 }}" \
               -e BOT_TOKEN_2="${{ secrets.BOT_TOKEN_2 }}" \
               -e GOOGLE_API_KEY="${{ secrets.GOOGLE_API_KEY }}" \
-              ghcr.io/${{ github.repository_owner }}/linkfixerkotlin:latest
+              ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ env.IMAGE_TAG }}
