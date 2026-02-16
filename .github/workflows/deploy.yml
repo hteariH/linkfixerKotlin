@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: linkfixerkotlin
 
 
 jobs:
@@ -32,7 +32,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # Pull the new image
-            docker pull ghcr.io/${{ github.repository }}:latest
+            docker pull ghcr.io/${{ github.repository_owner }}/linkfixerkotlin:latest
             
             # Stop and remove the old container
             docker stop my-app || true
@@ -71,4 +71,4 @@ jobs:
               -e BOT_TOKEN_1="${{ secrets.BOT_TOKEN_1 }}" \
               -e BOT_TOKEN_2="${{ secrets.BOT_TOKEN_2 }}" \
               -e GOOGLE_API_KEY="${{ secrets.GOOGLE_API_KEY }}" \
-              ghcr.io/${{ github.repository }}:latest
+              ghcr.io/${{ github.repository_owner }}/linkfixerkotlin:latest
