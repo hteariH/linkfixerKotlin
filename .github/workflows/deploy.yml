@@ -62,7 +62,7 @@ jobs:
             sudo docker rm my-app || true
             
             # Ensure data directory exists
-            sudo mkdir -p /opt/linkfixer/data
+            sudo mkdir -p /opt/linkfixer/data/logs
             sudo chown -R $USER:$USER /opt/linkfixer/data
             
             # Create cookies.txt from secret
