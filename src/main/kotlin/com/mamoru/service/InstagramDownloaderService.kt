@@ -1,5 +1,6 @@
 package com.mamoru.service
 
+import javax.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -22,7 +23,8 @@ class InstagramDownloaderService {
 
     private var cookiesPath: String = ""
 
-    init {
+    @PostConstruct
+    fun init() {
         try {
             // Create download directory if it doesn't exist
             val dir = File(downloadPath)
@@ -128,10 +130,10 @@ class InstagramDownloaderService {
 //                logger.warn("No cookies file specified, authentication may fail")
 //            }
 
-            if (cookiesPath.isNotEmpty()) {
+//            if (cookiesPath.isNotEmpty()) {
                 commandList.add("--cookies")
                 commandList.add(cookiesPath)
-            }
+//            }
 
             val command = commandList
 

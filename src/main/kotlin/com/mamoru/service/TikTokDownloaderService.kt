@@ -1,5 +1,6 @@
 package com.mamoru.service
 
+import javax.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -19,7 +20,8 @@ class TikTokDownloaderService {
     @Value("\${ytdlp.path:yt-dlp}")
     private lateinit var ytdlpPath: String
 
-    init {
+    @PostConstruct
+    fun init() {
         try {
             // Create download directory if it doesn't exist
             val dir = File(downloadPath)
