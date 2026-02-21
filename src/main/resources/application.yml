@@ -5,7 +5,7 @@ spring:
     hikari:
       maximum-pool-size: 10
     url: ${DATABASE_URL:jdbc:h2:file:/data/chatdb;AUTO_SERVER=TRUE}
-    driver-class-name: org.h2.Driver
+    driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
     username: ${DATABASE_USERNAME:sa}
     password: ${DATABASE_PASSWORD:password}
 
@@ -23,12 +23,12 @@ logging:
     org.hibernate.SQL: INFO
   h2:
     console:
-      enabled: true
+      enabled: false
       path: /h2-console
       settings:
         web-allow-others: true
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: ${DATABASE_DIALECT:org.hibernate.dialect.H2Dialect}
     hibernate:
       ddl-auto: update
     show-sql: false
