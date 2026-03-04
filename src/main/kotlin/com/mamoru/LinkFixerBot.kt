@@ -41,7 +41,11 @@ class LinkFixerBot(
 
 
             // Handle audio messages if the feature is enabled
-            if (!botUsername.contains("HWSlavaBot", ignoreCase = true) && message.hasVoice() && chatSettingsManagementService.getChatSettings(chatId).transcribeAudio) {
+            if (!botUsername.contains(
+                    "HWSlavaBot",
+                    ignoreCase = true
+                ) && message.hasVoice() && chatSettingsManagementService.getChatSettings(chatId).transcribeAudio
+            ) {
                 handleAudio(message)
                 return
             }
@@ -79,31 +83,32 @@ class LinkFixerBot(
             }
         }
 
-        if (botUsername.contains("HWSlavaBot",ignoreCase = true)){
+        if (botUsername.contains("HWSlavaBot", ignoreCase = true)) {
             logger.info("Skipping processing of message in HWSlavaBot")
             return
         }
 
         // Send mention response if generated (when bot is mentioned or replied to)
-    if (chatSettingsManagementService.getChatSettings(message.chatId).commentOnPictures) {
-        result.mentionResponse?.let { responseText ->
-            val sendMessage = SendMessage()
-            sendMessage.chatId = message.chatId.toString()
-            sendMessage.text = responseText
-            sendMessage.replyToMessageId = message.messageId
-            try {
-                execute(sendMessage)
-                logger.info("Sent response to mention/reply in chat: ${message.chatId}")
-            } catch (e: TelegramApiException) {
-                logger.error("Failed to send mention response: ${e.message}", e)
+        if (chatSettingsManagementService.getChatSettings(message.chatId).commentOnPictures) {
+            result.mentionResponse?.let { responseText ->
+
+                val sendMessage = SendMessage()
+                sendMessage.chatId = message.chatId.toString()
+                sendMessage.text = responseText
+                sendMessage.replyToMessageId = message.messageId
+                try {
+                    execute(sendMessage)
+                    logger.info("Sent response to mention/reply in chat: ${message.chatId}")
+                } catch (e: TelegramApiException) {
+                    logger.error("Failed to send mention response: ${e.message}", e)
+                }
+            }
+
+            // Send joke response if generated
+            result.jokeResponse?.let { jokeText ->
+                sendMessageToChat(message.chatId, jokeText)
             }
         }
-
-        // Send joke response if generated
-        result.jokeResponse?.let { jokeText ->
-            sendMessageToChat(message.chatId, jokeText)
-        }
-    }
 
         // Handle processed URLs
         result.processedText?.let { processedText ->
@@ -145,6 +150,7 @@ class LinkFixerBot(
                         sendMessageToChat(message.chatId, processedUrl.converted)
                     }
                 }
+
                 Constants.UrlType.INSTAGRAM -> {
                     val sendVideo = mediaHandlerService.handleInstagramUrl(message, processedUrl.original)
                     if (sendVideo != null) {
@@ -159,6 +165,7 @@ class LinkFixerBot(
                         sendMessageToChat(message.chatId, processedUrl.converted)
                     }
                 }
+
                 Constants.UrlType.TWITTER -> {
                     if (processedUrl.original != processedUrl.converted) {
                         sendMessageToChat(message.chatId, processedUrl.converted)
@@ -173,14 +180,30 @@ class LinkFixerBot(
      * Send a text message to a chat
      */
     fun sendMessageToChat(chatId: Long, text: String) {
-        val message = SendMessage()
-        message.chatId = chatId.toString()
-        message.text = text
-        try {
-            execute(message)
-            logger.info("Sent message to chat: $chatId")
-        } catch (e: Exception) {
-            logger.error("Failed to send message to chat $chatId: ${e.message}", e)
+        val separator = "----------------------------------------"
+        // Telegram hard limit is 4096 UTF-16 code units for SendMessage.text
+        val telegramMaxLen = 4096
+
+        val parts = text
+            .split(separator)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .ifEmpty { listOf("") }
+
+        for (part in parts) {
+            // Truncate defensively; if you want multi-chunk splitting later, we can extend this.
+            val toSend = if (part.length > telegramMaxLen) part.substring(0, telegramMaxLen) else part
+
+            val message = SendMessage()
+            message.chatId = chatId.toString()
+            message.text = toSend
+
+            try {
+                execute(message)
+                logger.info("Sent message to chat: $chatId")
+            } catch (e: Exception) {
+                logger.error("Failed to send message to chat $chatId: ${e.message}", e)
+            }
         }
     }
 }
