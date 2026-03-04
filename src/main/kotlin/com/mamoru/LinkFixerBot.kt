@@ -200,7 +200,7 @@ class LinkFixerBot(
 
             try {
                 execute(message)
-                logger.info("Sent message to chat: $chatId")
+                logger.info("Sent message to chat: $chatId message text: $toSend" )
             } catch (e: Exception) {
                 logger.error("Failed to send message to chat $chatId: ${e.message}", e)
             }
