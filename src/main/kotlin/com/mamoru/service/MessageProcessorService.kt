@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.slf4j.LoggerFactory
+import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.data.redis.core.StringRedisTemplate
 import kotlin.random.Random
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 
@@ -16,7 +18,8 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot
 class MessageProcessorService(
     private val urlProcessingPipeline: UrlProcessingPipeline,
     private val chatSettingsManagementService: ChatSettingsManagementService,
-    private val geminiAIService: GeminiAIService
+    private val geminiAIService: GeminiAIService,
+    private val redisTemplate: StringRedisTemplate
 ) {
     private val logger = LoggerFactory.getLogger(MessageProcessorService::class.java)
 
@@ -51,12 +54,23 @@ class MessageProcessorService(
                 val replyText = replyToMessage?.text
                 val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
 
+
                 // Check if this is the target chat for impersonation
-                val responseText = when (chatId) {
+                val responseResult = when (chatId) {
                     geminiAIService.getTargetChatId() -> {
                         // Use impersonation response for the target chat
-                        // Determine target user ID based on command in text; fallback to previous random behavior
-                        val listOf1 = listOf(189786389L,4990569L)
+                        // Determine target user ID based on command in text; fallback to Redis-stored value if reply exists; finally random
+                        val redisTargetUserId = message.replyToMessage?.messageId?.let { replyId ->
+                            try {
+                                val toLongOrNull = redisTemplate.opsForValue().get(replyId.toString())?.toLongOrNull()
+                                logger.info("Fetched targetUserId $toLongOrNull from Redis for messageId $replyId")
+                                toLongOrNull
+                            } catch (e: Exception) {
+                                logger.error("Failed to fetch targetUserId from Redis for messageId $replyId: ${e.message}")
+                                null
+                            }
+                        }
+
                         val targetUserId = when {
                             text.contains("/kiok@ChatManagerAssistantBot", ignoreCase = true) -> 426020724L
                             text.contains("/wirewood@ChatManagerAssistantBot", ignoreCase = true) -> 189786389L
@@ -66,6 +80,7 @@ class MessageProcessorService(
                             text.contains("/jotun@ChatManagerAssistantBot", ignoreCase = true) -> 158637780L
                             text.contains("/eevee@ChatManagerAssistantBot", ignoreCase = true) -> 179935044L
                             text.contains("/death@ChatManagerAssistantBot", ignoreCase = true) -> 141136819L
+                            redisTargetUserId != null -> redisTargetUserId
                             else -> {
                                 val nextInt = Random.nextInt(8)
                                 val listOf = listOf(426020724L, 189786389L, 114725695L, 158637780L, 317051301L, 123616664L, 179935044L,141136819L)
@@ -102,7 +117,7 @@ class MessageProcessorService(
 
                     else -> {
                         // Use regular mention response for other chats
-                        geminiAIService.generateMentionResponse(
+                        val mentionResponse = geminiAIService.generateMentionResponse(
                             text,
                             chatId,
                             replyText,
@@ -112,9 +127,11 @@ class MessageProcessorService(
                             botToken,
                             botUsername
                         )
+                        ImpersonationResponse(mentionResponse)
                     }
                 }
-                result.mentionResponse = responseText
+                result.mentionResponse = responseResult.text
+                result.impersonatedUserId = responseResult.impersonatedUserId
                 logger.info("Generated response for bot mention/reply in chat $chatId")
 
             } else if (containsZelenskyMention(text) && // Check for Zelensky mentions and possibly send a joke
@@ -189,6 +206,7 @@ class MessageProcessorService(
         var processedText: ProcessedText? = null,
         var jokeResponse: String? = null,
         var mentionResponse: String? = null,
+        var impersonatedUserId: Long? = null,
         var adminForwardMessage: SendMessage? = null
     )
 

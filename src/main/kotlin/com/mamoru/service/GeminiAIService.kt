@@ -26,6 +26,14 @@ import java.nio.file.Paths
 import java.util.UUID
 
 /**
+ * Data class to hold the response from impersonation
+ */
+data class ImpersonationResponse(
+    val text: String,
+    val impersonatedUserId: Long? = null
+)
+
+/**
  * Service for interacting with Google's Gemini AI API
  * Handles generating jokes and picture comments
  */
@@ -258,13 +266,13 @@ class GeminiAIService(
         botToken: String? = null,
         botUsername: String = "LinkFixer_Bot",
         userid: Long
-    ): String {
+    ): ImpersonationResponse {
         try {
             // Read the saved messages
             val savedMessages = messageAnalyzerService.readSavedMessages(userid)
             if (savedMessages.isNullOrEmpty()) {
                 logger.warn("No saved messages found for impersonation")
-                return "I don't have enough data to impersonate this person."
+                return ImpersonationResponse("I don't have enough data to impersonate this person.")
             }
 
             // Create content parts list
@@ -328,10 +336,11 @@ class GeminiAIService(
 
             // Create content from parts
             val content = Content.fromParts(*contentParts.toTypedArray())
-            return generateWithModels(content, "I couldn't generate a response at this time.")
+            val responseText = generateWithModels(content, "I couldn't generate a response at this time.")
+            return ImpersonationResponse(responseText, userid)
         } catch (e: Exception) {
             logger.error("Error generating impersonation response: ${e.message}", e)
-            return "I couldn't generate a response at this time."
+            return ImpersonationResponse("I couldn't generate a response at this time.")
         }
     }
 

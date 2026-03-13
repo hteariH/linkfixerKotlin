@@ -9,6 +9,7 @@ import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 import org.slf4j.LoggerFactory
+import org.springframework.data.redis.core.StringRedisTemplate
 
 /**
  * Main Telegram bot class that handles incoming updates and delegates processing to specialized services
@@ -20,7 +21,8 @@ class LinkFixerBot(
     private val mediaHandlerService: MediaHandlerService,
     private val messageProcessorService: MessageProcessorService,
     private val chatSettingsManagementService: ChatSettingsManagementService,
-    private val messageAnalyzerService: MessageAnalyzerService
+    private val messageAnalyzerService: MessageAnalyzerService,
+    private val redisTemplate: StringRedisTemplate
 ) : TelegramLongPollingBot(botToken) {
 
     private val logger = LoggerFactory.getLogger(LinkFixerBot::class.java)
@@ -101,8 +103,19 @@ class LinkFixerBot(
                             sendMessage.replyToMessageId = message.messageId
                         }
                         try {
-                            val execute = execute(sendMessage)
-                            logger.info("Sent response with id: ${execute.messageId} to mention/reply in chat: ${message.chatId} message text: $part")
+                            val executedMessage = execute(sendMessage)
+
+                            // Save impersonatedUserId to Redis if present
+                            result.impersonatedUserId?.let { userId ->
+                                try {
+                                    redisTemplate.opsForValue().set(executedMessage.messageId.toString(), userId.toString())
+                                    logger.info("Saved impersonatedUserId $userId for messageId ${executedMessage.messageId} to Redis")
+                                } catch (e: Exception) {
+                                    logger.error("Failed to save impersonatedUserId to Redis: ${e.message}")
+                                }
+                            }
+
+                            logger.info("Sent response with id: ${executedMessage.messageId} to mention/reply in chat: ${message.chatId} message text: $part impersonatedUserId: ${result.impersonatedUserId}")
                         } catch (e: TelegramApiException) {
                             logger.error("Failed to send mention response: ${e.message}", e)
                         }
