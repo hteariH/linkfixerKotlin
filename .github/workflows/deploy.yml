@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [ redis ]
+    branches: [ master ]
 
 env:
   REGISTRY: ghcr.io
