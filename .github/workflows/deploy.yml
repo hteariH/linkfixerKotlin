@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [ master ]
+    branches: [ redis ]
 
 env:
   REGISTRY: ghcr.io
@@ -40,9 +40,32 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set lower case owner name
         run: |
           echo "IMAGE_REPO=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
+      - name: Create .env file
+        run: |
+          echo "REGISTRY=${{ env.REGISTRY }}" > .env
+          echo "IMAGE_REPO=${{ env.IMAGE_REPO }}" >> .env
+          echo "IMAGE_TAG=${{ env.IMAGE_TAG }}" >> .env
+          echo "BOT_TOKEN_1=${{ secrets.BOT_TOKEN_1 }}" >> .env
+          echo "BOT_TOKEN_2=${{ secrets.BOT_TOKEN_2 }}" >> .env
+          echo "DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}" >> .env
+          echo "DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}" >> .env
+          echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" >> .env
+
+      - name: Copy files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml,.env"
+          target: "/opt/linkfixer/"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -51,32 +74,19 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Authenticate server with GHCR (Only needed once, or use a PAT)
+            # Authenticate server with GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Pull the new image
-            sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ env.IMAGE_TAG }}
-            
-            # Stop and remove the old container
-            sudo docker stop my-app || true
-            sudo docker rm my-app || true
-            
-            # Ensure data directory exists
+            # Ensure project directory exists
             sudo mkdir -p /opt/linkfixer/data/logs
-            sudo chown -R $USER:$USER /opt/linkfixer/data
+            sudo chown -R $USER:$USER /opt/linkfixer
             
+            # Change to project directory
+            cd /opt/linkfixer
+
             # Create cookies.txt from secret
             echo "${{ secrets.COOKIES_CONTENT }}" > /opt/linkfixer/data/cookies.txt
 
-            # Run the new version
-            sudo docker run -d \
-              --name my-app \
-              -p 8080:8080 \
-              --restart always \
-              -v /opt/linkfixer/data:/data \
-              -e DATABASE_USERNAME="${{ secrets.DATABASE_USERNAME }}" \
-              -e DATABASE_PASSWORD="${{ secrets.DATABASE_PASSWORD }}" \
-              -e BOT_TOKEN_1="${{ secrets.BOT_TOKEN_1 }}" \
-              -e BOT_TOKEN_2="${{ secrets.BOT_TOKEN_2 }}" \
-              -e GOOGLE_API_KEY="${{ secrets.GOOGLE_API_KEY }}" \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ env.IMAGE_TAG }}
+            # Pull and restart services
+            sudo docker compose pull
+            sudo docker compose up -d --remove-orphans

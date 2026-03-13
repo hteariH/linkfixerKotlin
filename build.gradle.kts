@@ -43,6 +43,7 @@ dependencies {
     implementation("org.springframework:spring-context-support:5.3.30")
 
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("com.h2database:h2")
 
     // If you're still using javax namespace instead of jakarta

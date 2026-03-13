@@ -1,0 +1,31 @@
+services:
+  app:
+    image: ${REGISTRY}/${IMAGE_REPO}:${IMAGE_TAG}
+    build: .
+    container_name: link-fixer-bot
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=jdbc:h2:file:/data/chatdb;AUTO_SERVER=TRUE
+      - BOT_TOKEN_1=${BOT_TOKEN_1}
+      - BOT_TOKEN_2=${BOT_TOKEN_2}
+      - DATABASE_USERNAME=${DATABASE_USERNAME}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    volumes:
+      - ./data:/data
+    restart: always
+
+  redis:
+    image: redis:alpine
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  redis_data:
