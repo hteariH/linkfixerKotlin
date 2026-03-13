@@ -101,8 +101,8 @@ class LinkFixerBot(
                             sendMessage.replyToMessageId = message.messageId
                         }
                         try {
-                            execute(sendMessage)
-                            logger.info("Sent response to mention/reply in chat: ${message.chatId} message text: $part")
+                            val execute = execute(sendMessage)
+                            logger.info("Sent response with id: ${execute.messageId} to mention/reply in chat: ${message.chatId} message text: $part")
                         } catch (e: TelegramApiException) {
                             logger.error("Failed to send mention response: ${e.message}", e)
                         }
