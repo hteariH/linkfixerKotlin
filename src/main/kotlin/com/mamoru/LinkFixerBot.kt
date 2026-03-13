@@ -207,8 +207,8 @@ class LinkFixerBot(
             message.text = part
 
             try {
-                execute(message)
-                logger.info("Sent message to chat: $chatId message text: $part")
+                val execute = execute(message)
+                logger.info("Sent message with id ${execute.messageId} to chat: $chatId message text: $part ")
             } catch (e: Exception) {
                 logger.error("Failed to send message to chat $chatId: ${e.message}", e)
             }
