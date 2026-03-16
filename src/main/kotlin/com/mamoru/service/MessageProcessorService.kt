@@ -110,7 +110,8 @@ class MessageProcessorService(
                     -1002920837282 -> {
 //                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 155189941)//artem
 //                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 624397093)//glist
-                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 6374805034)//sammy
+//                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 6374805034)//sammy
+                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 383133167)//igor
                         logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
                         impersonationResponse
                     }
