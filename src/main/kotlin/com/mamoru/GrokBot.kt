@@ -19,6 +19,7 @@ class GrokBot(
     override fun getBotUsername(): String = botName
 
     override fun onUpdateReceived(update: Update) {
+        logger.info("Received update: {}", update)
         if (!update.hasMessage() || !update.message.hasText()) return
         val message = update.message
         val chatId = message.chatId
