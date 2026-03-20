@@ -129,13 +129,30 @@ class GrokBot(
             return
         }
         val interestsPart = if (traits.interests.isNotBlank()) "\n\n🎯 Интересы:\n${traits.interests}" else ""
-        send(chatId, "👤 Характеристики $targetUsername:\n\n${traits.traits}$interestsPart", replyToMessageId)
+        val fullText = "👤 Характеристики $targetUsername:\n\n${traits.traits}$interestsPart"
+        sendLong(chatId, fullText, replyToMessageId)
+    }
+
+    private fun sendLong(chatId: Long, text: String, replyToMessageId: Int? = null) {
+        val limit = 4096
+        if (text.length <= limit) {
+            send(chatId, text, replyToMessageId)
+            return
+        }
+        var start = 0
+        var firstChunk = true
+        while (start < text.length) {
+            val end = minOf(start + limit, text.length)
+            send(chatId, text.substring(start, end), if (firstChunk) replyToMessageId else null)
+            firstChunk = false
+            start = end
+        }
     }
 
     private fun handleUpdateTraits(chatId: Long, userId: Long, username: String, replyToMessageId: Int) {
         Thread {
-            aiService.updateUserTraits(chatId, userId, username)
-            send(chatId, "✅ Характеристики и интересы обновлены для $username", replyToMessageId)
+            aiService.updateAllTraitsForChat(chatId)
+            send(chatId, "✅ Характеристики и интересы обновлены для всех пользователей", replyToMessageId)
         }.start()
     }
 
