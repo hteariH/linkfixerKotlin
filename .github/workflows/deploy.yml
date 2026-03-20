@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [ Spring-A ]
+    branches: [ Spring-AI ]
 
 env:
   REGISTRY: ghcr.io
