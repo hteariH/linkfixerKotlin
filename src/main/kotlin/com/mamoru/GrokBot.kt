@@ -28,17 +28,34 @@ class GrokBot(
         val userId = from.id
         val username = from.userName ?: userId.toString()
 
+        val isBotMentioned = text.contains("@$botName", ignoreCase = true)
+        val isReplyToBot = message.isReply && message.replyToMessage?.from?.userName.equals(botName, ignoreCase = true)
+
         try {
             when {
                 text.startsWith("/impersonate") -> handleImpersonate(chatId, text, message.messageId)
                 text.startsWith("/setimpersonate") -> handleSetImpersonate(chatId, text, message.messageId)
                 text.startsWith("/updatetraits") -> handleUpdateTraits(chatId, userId, username, message.messageId)
                 text.startsWith("/") -> { /* ignore unknown commands */ }
+                isBotMentioned || isReplyToBot -> handleBotAddressed(chatId, userId, username, text, message.messageId)
                 else -> handleRegularMessage(chatId, userId, username, text)
             }
         } catch (e: Exception) {
             logger.error("Error processing message in chat $chatId", e)
         }
+    }
+
+    private fun handleBotAddressed(chatId: Long, userId: Long, username: String, text: String, replyToMessageId: Int) {
+        aiService.saveMessage(chatId, userId, username, text)
+
+        val settings = chatSettingsService.getChatSettings(chatId)
+        val targetUserId = settings.impersonateUserId ?: return
+        val targetUsername = settings.impersonateUsername
+
+        Thread {
+            val response = aiService.impersonate(chatId, targetUserId, targetUsername, text)
+            send(chatId, response, replyToMessageId)
+        }.start()
     }
 
     private fun handleRegularMessage(chatId: Long, userId: Long, username: String, text: String) {

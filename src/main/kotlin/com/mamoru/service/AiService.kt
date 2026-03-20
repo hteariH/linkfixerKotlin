@@ -57,7 +57,7 @@ class AiService(
         val traits = userTraitsRepository.findByUserIdAndChatId(targetUserId, chatId)
             ?: return "Я не знаю этого пользователя. Сначала нужно накопить сообщения."
 
-        val recentMessages = chatMessageRepository.findTop50ByChatIdOrderByTimestampAsc(chatId)
+        val recentMessages = chatMessageRepository.findTop10ByChatIdOrderByTimestampDesc(chatId).reversed()
         val systemPrompt = buildImpersonationSystemPrompt(targetUsername, traits.traits, traits.interests)
 
         val historyMessages = recentMessages.map { msg ->
@@ -99,9 +99,11 @@ class AiService(
             Thread.sleep(1000*60)
         }
 
-        // Clear messages after processing
-        chatMessageRepository.deleteByChatId(chatId)
-        logger.info("Updated traits for all users in chat $chatId and cleared messages")
+        // Clear all messages except the last 10 (kept for impersonation context)
+        val allMessages = chatMessageRepository.findAllByChatId(chatId)
+        val toDelete = allMessages.sortedBy { it.timestamp }.dropLast(10)
+        chatMessageRepository.deleteAll(toDelete)
+        logger.info("Updated traits for all users in chat $chatId and cleared messages (kept last 10)")
     }
 
     fun updateUserTraits(chatId: Long, userId: Long, username: String?) {
