@@ -67,15 +67,15 @@ class GrokBot(
         val targetUsername = settings.impersonateUsername
 
         // Load traits to check interests
-        val traits = aiService.findTraitsByUsername(chatId, targetUsername ?: "") ?: return
+//        val traits = aiService.findTraitsByUsername(chatId, targetUsername ?: "") ?: return
 
         // Respond if the impersonated user is @mentioned or their interests are referenced
-        Thread {
-            if (aiService.shouldRespond(text, targetUsername, traits.interests)) {
-                val response = aiService.impersonate(chatId, targetUserId, targetUsername, text)
-                send(chatId, response)
-            }
-        }.start()
+//        Thread {
+//            if (aiService.shouldRespond(text, targetUsername, traits.interests)) {
+//                val response = aiService.impersonate(chatId, targetUserId, targetUsername, text)
+//                send(chatId, response)
+//            }
+//        }.start()
     }
 
     private fun handleImpersonate(chatId: Long, text: String, replyToMessageId: Int) {
