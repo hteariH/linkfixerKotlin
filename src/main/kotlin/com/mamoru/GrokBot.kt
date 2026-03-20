@@ -36,6 +36,7 @@ class GrokBot(
                 text.startsWith("/impersonate") -> handleImpersonate(chatId, text, message.messageId)
                 text.startsWith("/setimpersonate") -> handleSetImpersonate(chatId, text, message.messageId)
                 text.startsWith("/updatetraits") -> handleUpdateTraits(chatId, userId, username, message.messageId)
+                text.startsWith("/showtraits") -> handleShowTraits(chatId, text, message.messageId)
                 text.startsWith("/") -> { /* ignore unknown commands */ }
                 isBotMentioned || isReplyToBot -> handleBotAddressed(chatId, userId, username, text, message.messageId)
                 else -> handleRegularMessage(chatId, userId, username, text)
@@ -114,6 +115,21 @@ class GrokBot(
 
         chatSettingsService.updateImpersonateUser(chatId, traits.userId, traits.username ?: targetUsername)
         send(chatId, "✅ Теперь бот будет отвечать от имени $targetUsername в этом чате.", replyToMessageId)
+    }
+
+    private fun handleShowTraits(chatId: Long, text: String, replyToMessageId: Int) {
+        val targetUsername = text.removePrefix("/showtraits").trim().removePrefix("@")
+        if (targetUsername.isBlank()) {
+            send(chatId, "Использование: /showtraits @username", replyToMessageId)
+            return
+        }
+        val traits = aiService.findTraitsByUsername(chatId, targetUsername)
+        if (traits == null) {
+            send(chatId, "Не найдено данных для пользователя $targetUsername.", replyToMessageId)
+            return
+        }
+        val interestsPart = if (traits.interests.isNotBlank()) "\n\n🎯 Интересы:\n${traits.interests}" else ""
+        send(chatId, "👤 Характеристики $targetUsername:\n\n${traits.traits}$interestsPart", replyToMessageId)
     }
 
     private fun handleUpdateTraits(chatId: Long, userId: Long, username: String, replyToMessageId: Int) {
