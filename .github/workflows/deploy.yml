@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [ master ]
+    branches: [ Spring-A ]
 
 env:
   REGISTRY: ghcr.io
@@ -52,11 +52,9 @@ jobs:
           echo "REGISTRY=${{ env.REGISTRY }}" > .env
           echo "IMAGE_REPO=${{ env.IMAGE_REPO }}" >> .env
           echo "IMAGE_TAG=${{ env.IMAGE_TAG }}" >> .env
-          echo "BOT_TOKEN_1=${{ secrets.BOT_TOKEN_1 }}" >> .env
-          echo "BOT_TOKEN_2=${{ secrets.BOT_TOKEN_2 }}" >> .env
-          echo "DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}" >> .env
-          echo "DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}" >> .env
-          echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" >> .env
+          echo "BOT_TOKEN=${{ secrets.BOT_TOKEN }}" >> .env
+          echo "BOT_NAME=${{ secrets.BOT_NAME }}" >> .env
+          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
 
       - name: Copy files via SCP
         uses: appleboy/scp-action@v0.1.7
@@ -65,7 +63,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "docker-compose.yml,.env"
-          target: "/opt/linkfixer/"
+          target: "/opt/grokbot/"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -78,14 +76,11 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # Ensure project directory exists
-            sudo mkdir -p /opt/linkfixer/data/logs
-            sudo chown -R $USER:$USER /opt/linkfixer
+            sudo mkdir -p /opt/grokbot/data/logs
+            sudo chown -R $USER:$USER /opt/grokbot
             
             # Change to project directory
-            cd /opt/linkfixer
-
-            # Create cookies.txt from secret
-            echo "${{ secrets.COOKIES_CONTENT }}" > /opt/linkfixer/data/cookies.txt
+            cd /opt/grokbot
 
             # Pull and restart services
             sudo docker compose pull

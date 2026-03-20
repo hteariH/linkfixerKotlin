@@ -14,39 +14,30 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 @EnableScheduling
 @EnableConfigurationProperties(TelegramBotConfig::class)
 @SpringBootApplication
-class LinkFixerBotApplication {
-
+class GrokBotApplication {
 
     @Bean
     fun telegramBotsApi(): TelegramBotsApi {
         return TelegramBotsApi(DefaultBotSession::class.java)
     }
 
-
     @Bean
-    fun registerBots(
-        telegramBotsApi: TelegramBotsApi, 
+    fun registerBot(
+        telegramBotsApi: TelegramBotsApi,
         telegramBotConfig: TelegramBotConfig,
-        telegramBotFactory: TelegramBotFactory,
-    ): List<LinkFixerBot> {
-        val registeredBots = mutableListOf<LinkFixerBot>()
-
-        for (botConfig in telegramBotConfig.bots) {
-            try {
-                val bot = telegramBotFactory.createBot(botConfig.name, botConfig.token)
-                telegramBotsApi.registerBot(bot)
-                registeredBots.add(bot)
-                println("Bot ${botConfig.name} started successfully!")
-            } catch (e: TelegramApiException) {
-                println("Failed to start bot ${botConfig.name}: ${e.message}")
-                e.printStackTrace()
-            }
+        telegramBotFactory: TelegramBotFactory
+    ): GrokBot {
+        return try {
+            val bot = telegramBotFactory.createBot(telegramBotConfig.name, telegramBotConfig.token)
+            telegramBotsApi.registerBot(bot)
+            println("Bot ${telegramBotConfig.name} started successfully!")
+            bot
+        } catch (e: TelegramApiException) {
+            throw RuntimeException("Failed to start bot ${telegramBotConfig.name}: ${e.message}", e)
         }
-
-        return registeredBots
     }
 }
 
 fun main(args: Array<String>) {
-    runApplication<LinkFixerBotApplication>(*args)
+    runApplication<GrokBotApplication>(*args)
 }

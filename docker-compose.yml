@@ -2,30 +2,32 @@ services:
   app:
     image: ${REGISTRY}/${IMAGE_REPO}:${IMAGE_TAG}
     build: .
-    container_name: link-fixer-bot
+    container_name: grokbot
     depends_on:
-      - redis
+      - mongodb
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - DATABASE_URL=jdbc:h2:file:/data/chatdb;AUTO_SERVER=TRUE
-      - BOT_TOKEN_1=${BOT_TOKEN_1}
-      - BOT_TOKEN_2=${BOT_TOKEN_2}
-      - DATABASE_USERNAME=${DATABASE_USERNAME}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/chatbot}
+      - BOT_TOKEN=${BOT_TOKEN}
+      - BOT_NAME=${BOT_NAME:-grokbot}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - AI_MODEL=${AI_MODEL:-openai/gpt-oss-120b}
     volumes:
-      - ./data:/data
+      - /data/grokbot/app:/data
+    networks:
+      - grokbot-net
     restart: always
 
-  redis:
-    image: redis:alpine
-    container_name: redis-cache
+  mongodb:
+    image: mongo:7
+    container_name: grokbot-mongodb
     ports:
-      - "6379:6379"
+      - "27018:27017"
     volumes:
-      - redis_data:/data
+      - /data/grokbot/mongo:/data/db
+    networks:
+      - grokbot-net
     restart: always
 
-volumes:
-  redis_data:
+networks:
+  grokbot-net:
+    driver: bridge

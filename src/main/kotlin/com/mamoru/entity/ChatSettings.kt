@@ -1,30 +1,14 @@
 package com.mamoru.entity
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.Id
-import jakarta.persistence.Table
+import org.springframework.data.annotation.Id
+import org.springframework.data.mongodb.core.mapping.Document
 
-@Entity
-@Table(name = "chat_settings")
+@Document(collection = "chat_settings")
 data class ChatSettings(
     @Id
     val chatId: Long,
-
-    // Default to true
-    val sendCounterUntilWin: Boolean = false,
-
-    val sendRandomJoke: Boolean = false,
-
-    @Column(name = "COMMENTONPICTURES")
     val commentOnPictures: Boolean = false,
-
-    @Column(name = "TRANSCRIBEAUDIO")
-    val transcribeAudio: Boolean = false,
-
-    @Column(name = "JOKEPROMPT", length = 1000)
-    val jokePrompt: String = "Ти - Лідер України, Володимир Зеленський, роскажи актуальну шутку(просто роскажи шутку/анекдот, не вітайся, не роби висновків, також знай що зараз 2025 рік і на виборах президента США переміг Дональд Трамп)",
-
-    @Column(name = "PICTUREPROMPT", length = 1000)
-    val picturePrompt: String = "Ти - Володимир Зеленьский. Не забувай, що ти президент воюючої країни, також твоє улюблене слово - потужно. при відповідях не вітайся і пиши максимально коротко, а також не забудь обматерити і змішати з гівном того хто відправив тобі повідомлення"
+    val picturePrompt: String = "Ты — Владимир Зеленский. Не забывай, что ты президент воюющей страны, также твоё любимое слово — мощно. При ответах не здоровайся и пиши максимально коротко, а также не забудь обматерить и смешать с грязью того, кто отправил тебе сообщение",
+    val impersonateUserId: Long? = null,
+    val impersonateUsername: String? = null
 )

@@ -1,22 +1,20 @@
 spring:
   application:
-    name: link-fixer-bot
+    name: grokbot
   data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-  datasource:
-    hikari:
-      maximum-pool-size: 10
-    url: ${DATABASE_URL:jdbc:h2:file:/data/chatdb;AUTO_SERVER=TRUE}
-    driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
-    username: ${DATABASE_USERNAME:sa}
-    password: ${DATABASE_PASSWORD:password}
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/chatbot}
+  ai:
+    openai:
+      api-key: ${GROQ_API_KEY}
+      base-url: https://api.groq.com/openai
+      chat:
+        options:
+          model: ${AI_MODEL:openai/gpt-oss-120b}
 
 logging:
   file:
-    name: /data/logs/linkfixer.log
+    name: /data/logs/grokbot.log
   logback:
     rollingpolicy:
       max-file-size: 100MB
@@ -25,37 +23,8 @@ logging:
     root: INFO
     com.mamoru: DEBUG
     org.springframework: INFO
-    org.hibernate.SQL: INFO
-  h2:
-    console:
-      enabled: false
-      path: /h2-console
-      settings:
-        web-allow-others: true
-  jpa:
-    database-platform: ${DATABASE_DIALECT:org.hibernate.dialect.H2Dialect}
-    hibernate:
-      ddl-auto: update
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
-
 
 telegram:
-  bots:
-    - name: LinkFixer_Bot
-      token: ${BOT_TOKEN_1}
-    - name: ChatManagerAssistantBot
-      token: ${BOT_TOKEN_2}
-
-tiktok:
-  download:
-    path: /data/downloads
-
-instagram:
-  download:
-    path: /data/downloads
-
-ytdlp:
-  path: yt-dlp
+  bot:
+    name: ${BOT_NAME:hellomynameiskiokbot}
+    token: ${BOT_TOKEN}
