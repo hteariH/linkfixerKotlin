@@ -32,7 +32,6 @@ dependencies {
 
     implementation("org.telegram:telegrambots:6.8.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
-    implementation("ch.qos.logback:logback-classic:1.4.12")
 
     testImplementation(kotlin("test"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
