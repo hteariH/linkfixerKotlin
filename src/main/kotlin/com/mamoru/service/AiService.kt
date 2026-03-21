@@ -6,7 +6,6 @@ import com.mamoru.repository.ChatMessageRepository
 import com.mamoru.repository.UserTraitsRepository
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
-import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.messages.Message
 import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
@@ -28,42 +27,22 @@ class AiService(
     }
 
     /**
-     * Returns true if the message text mentions the impersonated user by @username
-     * or references any of their interests.
+     * Respond as a helpful assistant, including the sender's traits in context if available.
      */
-    fun shouldRespond(text: String, targetUsername: String?, interests: String): Boolean {
-        if (targetUsername != null && text.contains("@$targetUsername", ignoreCase = true)) return true
-        if (interests.isBlank()) return false
-        // Ask LLM if the message is related to any of the user's interests
-        return try {
-            val prompt = """
-                Список интересов пользователя:
-                $interests
-                
-                Сообщение из чата:
-                "$text"
-                
-                Упоминается ли в сообщении хотя бы один из интересов пользователя? Ответь только "да" или "нет".
-            """.trimIndent()
-            val answer = chatClient.prompt().user(prompt).call().content() ?: "нет"
-            answer.trim().lowercase().startsWith("да")
-        } catch (e: Exception) {
-            logger.error("Error checking interests relevance", e)
-            false
-        }
-    }
-
-    fun impersonate(chatId: Long, targetUserId: Long, targetUsername: String?, triggerText: String): String {
-        val traits = userTraitsRepository.findByUserIdAndChatId(targetUserId, chatId)
-            ?: return "Я не знаю этого пользователя. Сначала нужно накопить сообщения."
-
+    fun respondAsAssistant(chatId: Long, userId: Long, username: String?, triggerText: String): String {
+        val traits = userTraitsRepository.findByUserIdAndChatId(userId, chatId)
         val recentMessages = chatMessageRepository.findTop10ByChatIdOrderByTimestampDesc(chatId).reversed()
-        val systemPrompt = buildImpersonationSystemPrompt(targetUsername, traits.traits, traits.interests)
+
+        val recallAll = triggerText.contains("вспомни всё", ignoreCase = true) ||
+            triggerText.contains("вспомни все", ignoreCase = true) ||
+            triggerText.contains("recall everything", ignoreCase = true)
+        val allTraits = if (recallAll) userTraitsRepository.findByChatId(chatId) else emptyList()
+
+        val systemPrompt = buildAssistantSystemPrompt(username, traits, allTraits)
 
         val historyMessages = recentMessages.map { msg ->
             val name = msg.username ?: "user_${msg.userId}"
-            if (msg.userId == targetUserId) AssistantMessage("$name: ${msg.text}")
-            else UserMessage("$name: ${msg.text}")
+            UserMessage("$name: ${msg.text}")
         }
 
         val messages = mutableListOf<Message>(SystemMessage(systemPrompt))
@@ -73,14 +52,40 @@ class AiService(
         return try {
             chatClient.prompt().messages(messages).call().content() ?: "..."
         } catch (e: Exception) {
-            logger.error("Error during impersonation for user $targetUserId in chat $chatId", e)
+            logger.error("Error generating assistant response for user $userId in chat $chatId", e)
             "Ошибка при генерации ответа."
+        }
+    }
+
+    /**
+     * Generate a dead chat revival message targeting a specific user based on their interests.
+     */
+    fun generateRevivalMessage(chatId: Long, targetUserId: Long, targetUsername: String?): String {
+        val traits = userTraitsRepository.findByUserIdAndChatId(targetUserId, chatId)
+        val name = targetUsername?.let { "@$it" } ?: "участник чата"
+
+        val prompt = buildRevivalPrompt(name, traits)
+
+        return try {
+            chatClient.prompt().user(prompt).call().content()
+                ?: "Эй, $name, как дела? Давно не было активности в чате 👋"
+        } catch (e: Exception) {
+            logger.error("Error generating revival message for chat $chatId", e)
+            "Эй, $name, как дела? Давно не было активности в чате 👋"
         }
     }
 
     fun findTraitsByUsername(chatId: Long, username: String): UserTraits? {
         return userTraitsRepository.findByChatId(chatId)
             .firstOrNull { it.username.equals(username, ignoreCase = true) }
+    }
+
+    fun getLastMessageTime(chatId: Long): Instant? {
+        return chatMessageRepository.findTop1ByChatIdOrderByTimestampDesc(chatId).firstOrNull()?.timestamp
+    }
+
+    fun getUsersWithTraits(chatId: Long): List<UserTraits> {
+        return userTraitsRepository.findByChatId(chatId)
     }
 
     /**
@@ -96,21 +101,16 @@ class AiService(
             if (userMessages.size < 3) continue
             val username = userMessages.last().username
             updateUserTraitsAndInterests(chatId, userId, username, userMessages)
-            Thread.sleep(1000*60)
+            Thread.sleep(1000 * 60)
         }
 
-        // Clear all messages except the last 10 (kept for impersonation context)
+        // Clear all messages except the last 10 (kept for context)
         val allMessages = chatMessageRepository.findAllByChatId(chatId)
         val toDelete = allMessages.sortedBy { it.timestamp }.dropLast(10)
         chatMessageRepository.deleteAll(toDelete)
         logger.info("Updated traits for all users in chat $chatId and cleared messages (kept last 10)")
     }
 
-    fun updateUserTraits(chatId: Long, userId: Long, username: String?) {
-        val messages = chatMessageRepository.findTop100ByChatIdAndUserIdOrderByTimestampAsc(chatId, userId)
-        if (messages.size < 5) return
-        updateUserTraitsAndInterests(chatId, userId, username, messages)
-    }
 
     private fun updateUserTraitsAndInterests(
         chatId: Long, userId: Long, username: String?, messages: List<ChatMessage>
@@ -141,21 +141,46 @@ class AiService(
         logger.info("Updated traits+interests for user $userId in chat $chatId")
     }
 
-    private fun buildImpersonationSystemPrompt(username: String?, traits: String, interests: String): String {
-        val name = username ?: "этот пользователь"
-        val interestsPart = if (interests.isNotBlank()) "\n\nИнтересы и увлечения:\n$interests" else ""
+    private fun buildAssistantSystemPrompt(username: String?, traits: UserTraits?, allUsersTraits: List<UserTraits> = emptyList()): String {
+        val userPart = if (traits != null) {
+            val name = username ?: "этот пользователь"
+            val interestsPart = if (traits.interests.isNotBlank()) "\n\nИнтересы пользователя:\n${traits.interests}" else ""
+            """
+                
+                Информация о пользователе, с которым ты общаешься ($name):
+                ${traits.traits}$interestsPart
+                
+                Учитывай эту информацию при ответе, чтобы быть максимально полезным и релевантным.
+            """.trimIndent()
+        } else ""
+
+        val allUsersPart = if (allUsersTraits.isNotEmpty()) {
+            val usersInfo = allUsersTraits.joinToString("\n\n") { u ->
+                val name = u.username ?: "user_${u.userId}"
+                val interestsPart = if (u.interests.isNotBlank()) "\n  Интересы: ${u.interests}" else ""
+                "👤 $name:\n  ${u.traits}$interestsPart"
+            }
+            "\n\nИнформация обо всех участниках чата:\n$usersInfo"
+        } else ""
+
         return """
-            Ты полностью перевоплощаешься в реального человека по имени $name из Telegram-чата.
+            Ты — полезный ассистент в Telegram-чате. Отвечай кратко, по делу и дружелюбно.
+            Не притворяйся кем-то другим. Ты просто умный помощник.
+            Отвечай на том языке, на котором написано сообщение.$userPart$allUsersPart
+        """.trimIndent()
+    }
+
+    private fun buildRevivalPrompt(targetName: String, traits: UserTraits?): String {
+        val interestsPart = if (traits != null && traits.interests.isNotBlank()) {
+            "\n\nИнтересы пользователя:\n${traits.interests}"
+        } else ""
+
+        return """
+            В чате давно не было сообщений. Придумай короткое, живое сообщение, чтобы оживить чат.
+            Обратись к пользователю $targetName и задай ему интересный вопрос или предложи тему для обсуждения.$interestsPart
             
-            Вот характеристики этого человека на основе его сообщений:
-            $traits$interestsPart
-            
-            Правила:
-            - Отвечай ТОЛЬКО от имени $name, полностью копируя его стиль, манеру речи, словарный запас
-            - Используй те же слова-паразиты, сокращения, эмодзи если они есть
-            - Не выходи из роли ни при каких обстоятельствах
-            - Не упоминай что ты AI
-            - Отвечай коротко и естественно, как в чате
+            Сообщение должно быть неформальным, коротким (1-2 предложения) и побуждать к ответу.
+            Не объясняй, что чат был неактивен. Просто начни разговор естественно.
         """.trimIndent()
     }
 
@@ -176,7 +201,7 @@ class AiService(
             - Язык общения
             - Любые другие заметные особенности
             
-            Ответ дай в виде структурированного текста для дальнейшего использования при имитации этого человека.
+            Ответ дай в виде структурированного текста.
         """.trimIndent()
     }
 

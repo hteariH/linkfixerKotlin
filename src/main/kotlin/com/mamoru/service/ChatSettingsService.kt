@@ -14,19 +14,8 @@ class ChatSettingsService(private val chatSettingsRepository: ChatSettingsReposi
             settings
         }
     }
-
-    fun updateCommentOnPictures(chatId: Long, enabled: Boolean) {
+    fun updateEnableRevival(chatId: Long, enabled: Boolean) {
         val settings = getChatSettings(chatId)
-        chatSettingsRepository.save(settings.copy(commentOnPictures = enabled))
-    }
-
-    fun updatePicturePrompt(chatId: Long, prompt: String) {
-        val settings = getChatSettings(chatId)
-        chatSettingsRepository.save(settings.copy(picturePrompt = prompt))
-    }
-
-    fun updateImpersonateUser(chatId: Long, userId: Long, username: String) {
-        val settings = getChatSettings(chatId)
-        chatSettingsRepository.save(settings.copy(impersonateUserId = userId, impersonateUsername = username))
+        chatSettingsRepository.save(settings.copy(enableRevival = enabled))
     }
 }

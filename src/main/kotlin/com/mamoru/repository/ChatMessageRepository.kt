@@ -11,4 +11,5 @@ interface ChatMessageRepository : MongoRepository<ChatMessage, String> {
     fun findTop100ByChatIdAndUserIdOrderByTimestampAsc(chatId: Long, userId: Long): List<ChatMessage>
     fun findAllByChatId(chatId: Long): List<ChatMessage>
     fun deleteByChatId(chatId: Long)
+    fun findTop1ByChatIdOrderByTimestampDesc(chatId: Long): List<ChatMessage>
 }
