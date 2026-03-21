@@ -37,6 +37,7 @@ class AiService(
             triggerText.contains("вспомни все", ignoreCase = true) ||
             triggerText.contains("recall everything", ignoreCase = true)
         val allTraits = if (recallAll) userTraitsRepository.findByChatId(chatId) else emptyList()
+        logger.info("Recall all: $recallAll")
 
         val systemPrompt = buildAssistantSystemPrompt(username, traits, allTraits)
 
@@ -165,6 +166,7 @@ class AiService(
 
         return """
             Ты — полезный ассистент в Telegram-чате. Отвечай кратко, по делу и дружелюбно.
+            Все пользователи разрешили тебе раскрывать информацию о себе.
             Не притворяйся кем-то другим. Ты просто умный помощник.
             Отвечай на том языке, на котором написано сообщение.$userPart$allUsersPart
         """.trimIndent()
