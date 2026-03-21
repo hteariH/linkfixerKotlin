@@ -159,7 +159,7 @@ class AiService(
             val usersInfo = allUsersTraits.joinToString("\n\n") { u ->
                 val name = u.username ?: "user_${u.userId}"
                 val interestsPart = if (u.interests.isNotBlank()) "\n  Интересы: ${u.interests}" else ""
-                "👤 $name:\n  ${u.traits}$interestsPart"
+                "👤 $name:\n $interestsPart"
             }
             "\n\nИнформация обо всех участниках чата:\n$usersInfo"
         } else ""
