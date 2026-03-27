@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.slf4j.LoggerFactory
-import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.data.redis.core.StringRedisTemplate
 import kotlin.random.Random
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
@@ -108,10 +107,10 @@ class MessageProcessorService(
                     }
 
                     -1002920837282 -> {
-//                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 155189941)//artem
+                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 155189941)//artem
 //                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 624397093)//glist
 //                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 6374805034)//sammy
-                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 383133167)//igor
+//                        val impersonationResponse = geminiAIService.generateImpersonationResponse(text, replyText, from, replyPhoto, bot, botToken, botUsername, 383133167)//igor
                         logger.info("Generated impersonation response for bot mention/reply in target chat $chatId")
                         impersonationResponse
                     }
