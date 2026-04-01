@@ -86,7 +86,7 @@ class TikTokDownloaderService {
                 ytdlpPath,
                 tikTokUrl,
                 "--no-warnings",
-                "-f", "bestvideo[vcodec^=avc]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+                "-f", "bestvideo[vcodec^=avc]+bestaudio/bestvideo+bestaudio/best[ext=mp4]/best",
                 "--merge-output-format", "mp4",
                 "-o", outputPath,
                 "--force-overwrites",  // Overwrite if file exists

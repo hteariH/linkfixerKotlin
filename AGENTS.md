@@ -47,7 +47,7 @@ This document describes the key services and components (agents) that make up th
 - **Responsibilities**:
     - Extracting video IDs from social media URLs.
     - Executing `yt-dlp` commands to download video and audio streams.
-    - Merging streams into a compatible MP4 format.
+    - Merging streams into a compatible MP4 format using `ffmpeg`.
 
 ### 6. **VideoCacheService**
 - **File**: `src/main/kotlin/com/mamoru/service/VideoCacheService.kt`
@@ -59,9 +59,9 @@ This document describes the key services and components (agents) that make up th
 - **File**: `src/main/kotlin/com/mamoru/service/MessageAnalyzerService.kt`
 - **Role**: Collects and analyzes user message history.
 - **Responsibilities**:
-    - Saving incoming messages from target users to local storage for future AI context (impersonation).
+    - Saving incoming messages from users to local storage for future AI context (impersonation).
 
-### 8. **ScheduledMessageService**
+### 8. **ScheduledMessageSenderService**
 - **File**: `src/main/kotlin/com/mamoru/service/ScheduledMessageSenderService.kt`
 - **Role**: Handles background tasks and periodic broadcasts.
 - **Responsibilities**:
@@ -71,9 +71,10 @@ This document describes the key services and components (agents) that make up th
 
 ### 9. **DownloadCleanupService**
 - **File**: `src/main/kotlin/com/mamoru/service/DownloadCleanupService.kt`
-- **Role**: Startup maintenance utility.
+- **Role**: Startup maintenance utility implementing `CommandLineRunner`.
 - **Responsibilities**:
     - Cleaning the download directory upon application startup to ensure a fresh state.
+    - Handles both TikTok and Instagram download paths, deduplicating if they share the same directory.
 
 ## Configuration & Management
 
