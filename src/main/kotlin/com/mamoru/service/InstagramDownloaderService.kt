@@ -117,6 +117,8 @@ class InstagramDownloaderService {
                 ytdlpPath,
                 instagramUrl,
                 "--no-warnings",
+                "-f", "bestvideo+bestaudio/best",
+                "--merge-output-format", "mp4",
                 "-o", outputPath,
                 "--force-overwrites"  // Overwrite if file exists
             )

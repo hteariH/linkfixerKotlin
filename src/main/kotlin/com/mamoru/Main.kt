@@ -50,3 +50,5 @@ class LinkFixerBotApplication {
 fun main(args: Array<String>) {
     runApplication<LinkFixerBotApplication>(*args)
 }
+
+

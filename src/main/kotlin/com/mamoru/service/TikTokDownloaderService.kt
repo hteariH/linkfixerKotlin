@@ -46,7 +46,7 @@ class TikTokDownloaderService {
     fun extractTikTokId(url: String): String? {
         // Pattern for TikTok URLs - adapt as needed
         val patterns = listOf(
-            "tiktok\\.com/\\@[\\w.-]+/video/([\\d]+)".toRegex(), // Standard format
+            "tiktok\\.com/@[\\w.-]+/video/([\\d]+)".toRegex(), // Standard format
             "tiktok\\.com/v/([\\d]+)".toRegex(),                // Short format
             "vm\\.tiktok\\.com/([\\w]+)".toRegex(),             // vm.tiktok.com format
             "vt\\.tiktok\\.com/([\\w]+)".toRegex()             // vm.tiktok.com format
@@ -86,6 +86,8 @@ class TikTokDownloaderService {
                 ytdlpPath,
                 tikTokUrl,
                 "--no-warnings",
+                "-f", "bestvideo+bestaudio/best",
+                "--merge-output-format", "mp4",
                 "-o", outputPath,
                 "--force-overwrites"  // Overwrite if file exists
             )
@@ -118,7 +120,7 @@ class TikTokDownloaderService {
                 throw IOException("yt-dlp failed with exit code ${process.exitValue()}: $errorOutput")
             }
 
-            logger.debug("yt-dlp output: $output")
+            logger.debug("yt-dlp output: {}", output)
 
             // Find the downloaded file (extension might vary)
             val parentDir = File(downloadPath)
