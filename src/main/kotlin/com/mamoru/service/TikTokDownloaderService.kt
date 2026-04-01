@@ -89,7 +89,8 @@ class TikTokDownloaderService {
                 "-f", "bestvideo[vcodec^=avc]+bestaudio[ext=m4a]/best[ext=mp4]/best",
                 "--merge-output-format", "mp4",
                 "-o", outputPath,
-                "--force-overwrites"  // Overwrite if file exists
+                "--force-overwrites",  // Overwrite if file exists
+                "--ffmpeg-location", "/usr/bin/ffmpeg"
             )
 
             logger.debug("Executing command: ${command.joinToString(" ")}")
@@ -124,9 +125,13 @@ class TikTokDownloaderService {
 
             // Find the downloaded file (extension might vary)
             val parentDir = File(downloadPath)
-            val downloadedFile = parentDir.listFiles { file ->
-                file.name.startsWith("tiktok_$videoId")
-            }?.firstOrNull()
+            val downloadedFiles = parentDir.listFiles { file ->
+                file.name.startsWith("tiktok_$videoId") && !file.name.contains(".part") && !file.name.contains(".ytdl")
+            }
+            
+            // Prefer .mp4 files as they are likely the merged result
+            val downloadedFile = downloadedFiles?.find { it.extension.lowercase() == "mp4" }
+                ?: downloadedFiles?.firstOrNull()
 
             if (downloadedFile == null) {
                 logger.error("Could not find downloaded file for video ID: $videoId")
