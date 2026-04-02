@@ -86,7 +86,7 @@ jobs:
             cd /opt/linkfixer
 
             # Create cookies.txt from secret
-            echo "${{ secrets.COOKIES_CONTENT }}" > /opt/linkfixer/data/cookies.txt
+            echo "${{ secrets.COOKIES_CONTENT }}" > /data/cookies.txt
 
             # Pull and restart services
             sudo docker compose pull
