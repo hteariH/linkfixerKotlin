@@ -1,5 +1,4 @@
-# Use a base image with both Java 17 and Python already installed
-FROM eclipse-temurin:17-jdk-jammy
+FROM ubuntu:25.04
 
 # Set the working directory in the container
 WORKDIR /app
@@ -7,11 +6,15 @@ WORKDIR /app
 # Install required packages in a single RUN command to reduce layers
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+        openjdk-17-jdk \
         yt-dlp \
         ffmpeg \
         dos2unix \
         && apt-get clean \
         && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH="$JAVA_HOME/bin:$PATH"
 
 # Copy the Gradle build files first for better caching
 COPY gradle ./gradle
