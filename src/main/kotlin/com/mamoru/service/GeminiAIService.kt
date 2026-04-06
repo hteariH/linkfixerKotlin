@@ -33,6 +33,7 @@ class GeminiAIService(
     private fun generateWithModels(content: Content, failureMessage: String): String {
         var lastError: Exception? = null
         for (model in Constants.AI.MODEL_CANDIDATES) {
+            logger.info("Generating content with model $model")
             try {
                 val response = client.models.generateContent(model, content, null)
                 val text = response.text()
@@ -158,7 +159,8 @@ class GeminiAIService(
                 contentParts.add(Part.fromText("Here is the conversation thread leading up to this message (oldest first):"))
                 for (msg in replyChain) {
                     val sender = msg.fromUsername ?: "unknown"
-                    contentParts.add(Part.fromText("[${sender}]: ${msg.text ?: "(no text)"}"))
+                    val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
+                    contentParts.add(Part.fromText("[${sender}]: $msgText"))
                     if (msg.photoFileId != null && bot != null && botToken != null) {
                         try {
                             val getFile = GetFile()

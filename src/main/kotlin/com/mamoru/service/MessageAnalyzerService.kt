@@ -17,12 +17,25 @@ class MessageAnalyzerService {
     // username (lowercase, no @) -> userId
     private val usernameToUserId: MutableMap<String, Long> = loadUsernameMap()
 
+    // usernames (lowercase) of all registered managed bots — messages mentioning them are not saved
+    private val managedBotUsernames = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    fun registerManagedBot(username: String) {
+        managedBotUsernames.add(username.lowercase())
+        logger.debug("Registered managed bot username for filter: @{}", username)
+    }
+
     fun analyzeMessageIfFromTargetUser(message: Message): Boolean {
         if (!message.hasText()) return false
         val userId = message.from?.id ?: return false
         val username = message.from?.userName
+        val textLower = message.text.lowercase()
 
-        if (message.text.lowercase().contains("@HydraManager_Bot")) return false
+        if (textLower.contains("@hydramanager_bot")) return false
+        if (managedBotUsernames.any { textLower.contains("@$it") }) {
+            logger.debug("Skipping message save — mentions a managed bot")
+            return false
+        }
 
         // Keep username -> userId mapping up to date
         if (username != null) {

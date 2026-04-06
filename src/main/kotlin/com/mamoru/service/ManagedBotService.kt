@@ -107,6 +107,7 @@ class ManagedBotService(
         val bot = telegramBotFactory.createBot(managedBot.botUsername, managedBot.botToken, managedBot.targetUserId)
         try {
             telegramBotsApi.registerBot(bot)
+            messageAnalyzerService.registerManagedBot(managedBot.botUsername)
             logger.info("Registered managed bot @${managedBot.botUsername} for userId ${managedBot.targetUserId}")
         } catch (e: TelegramApiException) {
             logger.error("Failed to register managed bot ${managedBot.botUsername}: ${e.message}", e)

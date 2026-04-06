@@ -16,6 +16,8 @@ logging:
     rollingpolicy:
       max-file-size: 100MB
       max-history: 7
+      total-size-cap: 1GB
+      clean-history-on-start: true
   level:
     root: INFO
     com.mamoru: DEBUG
