@@ -91,7 +91,8 @@ open class HydraManagerBot(
                         val sent = execute(sendMessage)
                         if (isManaged) {
                             messageCacheService.cacheSentMessage(
-                                message.chatId, sent.messageId, part, botName,
+                                chatId = message.chatId, messageId = sent.messageId, text = part,
+                                botUsername = botName,
                                 replyToMessageId = if (index == 0) message.messageId else null
                             )
                             logger.debug("[{}] Cached own sent message id={}", botName, sent.messageId)

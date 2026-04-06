@@ -34,7 +34,7 @@ class MessageProcessorService(
         val byReply = isBotRepliedTo(message, botUsername)
         val byPrivate = isManaged && isPrivateChat
         val byOwnMessage = isManaged && !isPrivateChat &&
-            message.replyToMessage?.messageId?.let { messageCacheService.isOwnMessage(message.chatId, it) } == true
+            message.replyToMessage?.messageId?.let { messageCacheService.isOwnMessage(botUsername, message.chatId, it) } == true
         val isMentioned = byMention || byReply || byPrivate || byOwnMessage
 
         if (isManaged) {

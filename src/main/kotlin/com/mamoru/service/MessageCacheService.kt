@@ -19,8 +19,8 @@ class MessageCacheService {
     private val cache = ConcurrentHashMap<Long, LinkedHashMap<Int, CachedMessage>>()
     private val maxPerChat = 300
 
-    // tracks message IDs that this bot instance sent (chatId -> set of messageIds)
-    private val ownMessages = ConcurrentHashMap<Long, MutableSet<Int>>()
+    // botUsername (lowercase) -> chatId -> set of sent messageIds
+    private val ownMessages = ConcurrentHashMap<String, ConcurrentHashMap<Long, MutableSet<Int>>>()
 
     fun cache(message: Message) {
         val chatMessages = cache.getOrPut(message.chatId) {
@@ -49,17 +49,21 @@ class MessageCacheService {
             fromUsername = botUsername,
             replyToMessageId = replyToMessageId
         )
-        ownMessages.getOrPut(chatId) { java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap()) }
+        ownMessages
+            .getOrPut(botUsername.lowercase()) { ConcurrentHashMap() }
+            .getOrPut(chatId) { java.util.Collections.newSetFromMap(ConcurrentHashMap()) }
             .add(messageId)
     }
 
-    fun trackSentMessage(chatId: Long, messageId: Int) {
-        ownMessages.getOrPut(chatId) { java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap()) }
+    fun trackSentMessage(botUsername: String, chatId: Long, messageId: Int) {
+        ownMessages
+            .getOrPut(botUsername.lowercase()) { ConcurrentHashMap() }
+            .getOrPut(chatId) { java.util.Collections.newSetFromMap(ConcurrentHashMap()) }
             .add(messageId)
     }
 
-    fun isOwnMessage(chatId: Long, messageId: Int): Boolean =
-        ownMessages[chatId]?.contains(messageId) == true
+    fun isOwnMessage(botUsername: String, chatId: Long, messageId: Int): Boolean =
+        ownMessages[botUsername.lowercase()]?.get(chatId)?.contains(messageId) == true
 
     /**
      * Returns messages in chronological order (oldest first) up the reply chain,
