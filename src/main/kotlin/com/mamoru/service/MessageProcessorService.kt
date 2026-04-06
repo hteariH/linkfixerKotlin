@@ -26,7 +26,9 @@ class MessageProcessorService(
 
         val settings = chatSettingsManagementService.getChatSettings(chatId)
         val isManaged = targetUserId != null
-        val isMentioned = isBotMentioned(text, botUsername) || isBotRepliedTo(message, botUsername)
+        val isPrivateChat = message.chat.isUserChat
+        val isMentioned = isBotMentioned(text, botUsername) || isBotRepliedTo(message, botUsername) ||
+            (isManaged && isPrivateChat)
 
         if (isMentioned && (isManaged || settings.commentOnPictures)) {
             val replyToMessage = message.replyToMessage
