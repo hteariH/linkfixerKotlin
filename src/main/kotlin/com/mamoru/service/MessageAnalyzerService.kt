@@ -67,7 +67,7 @@ class MessageAnalyzerService {
         val dir = File(dataDir)
         if (!dir.exists()) dir.mkdirs()
 
-        val entry = "\n$text\n\n----------------------------------------\n"
+        val entry = "\n$text\n----------------------------------------"
         Files.write(
             Paths.get("$dataDir/$userId.txt"),
             entry.toByteArray(),
