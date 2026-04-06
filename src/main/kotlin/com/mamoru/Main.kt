@@ -12,6 +12,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.scheduling.annotation.EnableScheduling
+import org.telegram.telegrambots.bots.DefaultBotOptions
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
@@ -36,7 +37,16 @@ class HydraManagerBotApplication {
         telegramBotFactory: TelegramBotFactory,
         managedBotService: ManagedBotService
     ): HydraManagerBot {
-        val bot = telegramBotFactory.createBot(telegramBotConfig.name, telegramBotConfig.token)
+        val options = DefaultBotOptions().apply {
+            allowedUpdates = listOf(
+                "message", "edited_message", "channel_post", "edited_channel_post",
+                "inline_query", "chosen_inline_result", "callback_query",
+                "shipping_query", "pre_checkout_query", "poll", "poll_answer",
+                "my_chat_member", "chat_member", "chat_join_request",
+                "managed_bot"
+            )
+        }
+        val bot = telegramBotFactory.createBot(telegramBotConfig.name, telegramBotConfig.token, botOptions = options)
         try {
             val session = telegramBotsApi.registerBot(bot)
             patchSessionMapper(session, managedBotService)

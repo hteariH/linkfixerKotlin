@@ -1,6 +1,7 @@
 package com.mamoru
 
 import com.mamoru.service.*
+import org.telegram.telegrambots.bots.DefaultBotOptions
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Message
@@ -16,8 +17,9 @@ open class HydraManagerBot(
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val messageAnalyzerService: MessageAnalyzerService,
     // Non-null for managed bots: always impersonates this user when mentioned
-    private val targetUserId: Long? = null
-) : TelegramLongPollingBot(botToken) {
+    private val targetUserId: Long? = null,
+    botOptions: DefaultBotOptions = DefaultBotOptions()
+) : TelegramLongPollingBot(botOptions, botToken) {
 
     private val logger = LoggerFactory.getLogger(HydraManagerBot::class.java)
 
