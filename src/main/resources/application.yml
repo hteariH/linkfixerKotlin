@@ -23,5 +23,5 @@ logging:
 
 telegram:
   bot:
-    name: ${HydraManager_Bot}
+    name: HydraManager_Bot
     token: ${HYDRA_BOT_TOKEN}

@@ -12,8 +12,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - MONGODB_URI=mongodb://mongodb:27017/hydramanagerbot
-      - BOT_TOKEN=${BOT_TOKEN}
-      - BOT_NAME=${BOT_NAME:-HydraManagerBot}
+      - HYDRA_BOT_TOKEN=${HYDRA_BOT_TOKEN}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     volumes:
       - ./data:/data
