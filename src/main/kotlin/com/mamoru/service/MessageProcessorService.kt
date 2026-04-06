@@ -24,38 +24,37 @@ class MessageProcessorService(
         val chatId = message.chatId
         val result = ProcessingResult()
 
-        if (chatSettingsManagementService.getChatSettings(chatId).commentOnPictures) {
-            val isMentioned = isBotMentioned(text, botUsername) || isBotRepliedTo(message, botUsername)
+        val settings = chatSettingsManagementService.getChatSettings(chatId)
+        val isManaged = targetUserId != null
+        val isMentioned = isBotMentioned(text, botUsername) || isBotRepliedTo(message, botUsername)
 
-            if (isMentioned) {
-                val replyToMessage = message.replyToMessage
-                val from = replyToMessage?.from?.userName
-                val replyText = replyToMessage?.text
-                val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
-                val cleanText = text.replace("@$botUsername", "", ignoreCase = true).trim()
+        if (isMentioned && (isManaged || settings.commentOnPictures)) {
+            val replyToMessage = message.replyToMessage
+            val from = replyToMessage?.from?.userName
+            val replyText = replyToMessage?.text
+            val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
+            val cleanText = text.replace("@$botUsername", "", ignoreCase = true).trim()
 
-                if (targetUserId != null) {
-                    // Managed bot: impersonate the linked user in any chat
-                    val response = geminiAIService.generateImpersonationResponse(
-                        cleanText, replyText, from, replyPhoto, bot, botToken, botUsername, targetUserId
-                    )
-                    result.mentionResponse = response.text
-                    result.impersonatedUserId = response.impersonatedUserId
-                    logger.info("Generated impersonation response as user $targetUserId in chat $chatId")
-                } else {
-                    // Main bot: generic mention response
-                    result.mentionResponse = geminiAIService.generateMentionResponse(
-                        cleanText, chatId, replyText, from, replyPhoto, bot, botToken, botUsername
-                    )
-                    logger.info("Generated mention response in chat $chatId")
-                }
-            } else if (containsZelenskyMention(text) &&
-                chatSettingsManagementService.getChatSettings(chatId).sendRandomJoke &&
-                Random.nextBoolean()
-            ) {
-                result.jokeResponse = geminiAIService.getRandomJoke(chatId)
-                logger.info("Generated joke response for Zelensky mention in chat $chatId")
+            if (isManaged) {
+                // Managed bot: impersonate the linked user in any chat
+                val response = geminiAIService.generateImpersonationResponse(
+                    cleanText, replyText, from, replyPhoto, bot, botToken, botUsername, targetUserId!!
+                )
+                result.mentionResponse = response.text
+                result.impersonatedUserId = response.impersonatedUserId
+                logger.info("Generated impersonation response as user $targetUserId in chat $chatId")
+            } else {
+                // Main bot: generic mention response
+                result.mentionResponse = geminiAIService.generateMentionResponse(
+                    cleanText, chatId, replyText, from, replyPhoto, bot, botToken, botUsername
+                )
+                logger.info("Generated mention response in chat $chatId")
             }
+        } else if (!isManaged && !isMentioned && settings.commentOnPictures &&
+            containsZelenskyMention(text) && settings.sendRandomJoke && Random.nextBoolean()
+        ) {
+            result.jokeResponse = geminiAIService.getRandomJoke(chatId)
+            logger.info("Generated joke response for Zelensky mention in chat $chatId")
         }
 
         chatSettingsManagementService.addChat(chatId)

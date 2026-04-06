@@ -53,7 +53,10 @@ open class HydraManagerBot(
             message, this, botToken, botName, targetUserId
         )
 
-        if (chatSettingsManagementService.getChatSettings(message.chatId).commentOnPictures) {
+        val settings = chatSettingsManagementService.getChatSettings(message.chatId)
+        val isManaged = targetUserId != null
+
+        if (isManaged || settings.commentOnPictures) {
             result.mentionResponse?.let { responseText ->
                 val parts = splitAndTruncate(responseText)
                 parts.forEachIndexed { index, part ->
@@ -69,7 +72,9 @@ open class HydraManagerBot(
                     }
                 }
             }
+        }
 
+        if (settings.commentOnPictures) {
             result.jokeResponse?.let { jokeText ->
                 sendMessageToChat(message.chatId, jokeText)
             }
