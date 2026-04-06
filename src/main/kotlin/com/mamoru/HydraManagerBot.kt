@@ -31,8 +31,9 @@ open class HydraManagerBot(
         val chatId = message.chatId
 
         try {
-            messageAnalyzerService.analyzeMessageIfFromTargetUser(message)
-
+           if(targetUserId == null) {
+               messageAnalyzerService.analyzeMessageIfFromTargetUser(message)
+           }
             if (!message.hasText()) return
 
             if (targetUserId == null) {
