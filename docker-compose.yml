@@ -2,21 +2,36 @@ services:
   app:
     image: ${REGISTRY}/${IMAGE_REPO}:${IMAGE_TAG}
     build: .
-    container_name: link-fixer-bot
+    container_name: hydra-manager-bot
     depends_on:
-      - redis
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - DATABASE_URL=jdbc:h2:file:/data/chatdb;AUTO_SERVER=TRUE
-      - BOT_TOKEN_1=${BOT_TOKEN_1}
-      - BOT_TOKEN_2=${BOT_TOKEN_2}
-      - DATABASE_USERNAME=${DATABASE_USERNAME}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - MONGODB_URI=mongodb://mongodb:27017/hydramanagerbot
+      - BOT_TOKEN=${BOT_TOKEN}
+      - BOT_NAME=${BOT_NAME:-HydraManagerBot}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     volumes:
       - ./data:/data
     restart: always
+
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: always
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:alpine
@@ -28,4 +43,5 @@ services:
     restart: always
 
 volumes:
+  mongodb_data:
   redis_data:

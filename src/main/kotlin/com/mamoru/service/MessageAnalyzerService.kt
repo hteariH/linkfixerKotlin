@@ -7,137 +7,99 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.nio.charset.StandardCharsets
 
-/**
- * Service for analyzing messages from a specific user using Gemini AI
- * and saving the messages to a file
- */
 @Service
-class MessageAnalyzerService() {
+class MessageAnalyzerService {
     private val logger = LoggerFactory.getLogger(MessageAnalyzerService::class.java)
-//    private val targetUserId = 123616664L
-    private val targetUserId = 426020724L
-    private val outputFilePath = "/data/"
-    private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    private val dataDir = "/data"
+    private val usernameMapFile = File("$dataDir/username_map.txt")
 
-    /**
-     * Analyzes a message if it's from the target user and saves it to a file
-     * 
-     * @param message The Telegram message to analyze
-     * @return true if the message was saved, false otherwise
-     */
+    // username (lowercase, no @) -> userId
+    private val usernameToUserId: MutableMap<String, Long> = loadUsernameMap()
+
     fun analyzeMessageIfFromTargetUser(message: Message): Boolean {
         if (!message.hasText()) return false
-
         val userId = message.from?.id ?: return false
+        val username = message.from?.userName
 
-        // Check if the message is from the target user
-//        if (userId != targetUserId) return false
+        if (message.text.lowercase().contains("@HydraManager_Bot")) return false
 
-        logger.info("Saving message from user (ID: $userId)")
-        if (message.text.contains("@ChatManagerAssistantBot")) return false
+        // Keep username -> userId mapping up to date
+        if (username != null) {
+            val key = username.lowercase()
+            if (!usernameToUserId.containsKey(key)) {
+                usernameToUserId[key] = userId
+                persistUsernameMapping(key, userId)
+                logger.info("Mapped username @$username to userId $userId")
+            }
+        }
+
         try {
-            // Save the message to file
             saveMessageToFile(message.text, userId)
-
-            logger.info("Successfully saved message from target user")
             return true
         } catch (e: Exception) {
-            logger.error("Error saving message from target user: ${e.message}", e)
+            logger.error("Error saving message from user $userId: ${e.message}", e)
             return false
         }
     }
 
-    /**
-     * Saves the original message to the output file
-     * 
-     * @param originalMessage The original message text
-     */
-    private fun saveMessageToFile(originalMessage: String, userId: Long) {
-        try {
-            // Create directory if it doesn't exist
-            val directory = File("data")
-            if (!directory.exists()) {
-                directory.mkdirs()
-                logger.info("Created directory: data")
-            }
+    /** Resolves a Telegram username (with or without @) to a stored userId, or null if unknown. */
+    fun resolveUserId(username: String): Long? =
+        usernameToUserId[username.removePrefix("@").lowercase()]
 
-            // Create file if it doesn't exist
-            val file = File("$outputFilePath$userId.txt")
+    fun readSavedMessages(userId: Long): String? {
+        return try {
+            val file = File("$dataDir/$userId.txt")
             if (!file.exists()) {
-                file.createNewFile()
-                logger.info("Created file: ${file.absolutePath}")
+                logger.warn("No message file for userId $userId")
+                return null
             }
+            val content = file.readText()
+            val maxLength = 150_000
+            if (content.length > maxLength) content.substring(content.length - maxLength) else content
+        } catch (e: Exception) {
+            logger.error("Error reading messages for userId $userId: ${e.message}", e)
+            null
+        }
+    }
 
-            // Format the entry with timestamp
-            val timestamp = LocalDateTime.now().format(dateFormatter)
-            val entry = """
-                |
-                |$originalMessage
-                |
-                |----------------------------------------
-            """.trimMargin()
+    private fun saveMessageToFile(text: String, userId: Long) {
+        val dir = File(dataDir)
+        if (!dir.exists()) dir.mkdirs()
 
-            // Append to file
+        val entry = "\n$text\n\n----------------------------------------\n"
+        Files.write(
+            Paths.get("$dataDir/$userId.txt"),
+            entry.toByteArray(),
+            StandardOpenOption.CREATE,
+            StandardOpenOption.APPEND
+        )
+    }
+
+    private fun loadUsernameMap(): MutableMap<String, Long> {
+        if (!usernameMapFile.exists()) return mutableMapOf()
+        return usernameMapFile.readLines()
+            .mapNotNull { line ->
+                val parts = line.split(":", limit = 2)
+                if (parts.size == 2) parts[0] to parts[1].toLongOrNull() else null
+            }
+            .filter { (_, id) -> id != null }
+            .associate { (name, id) -> name to id!! }
+            .toMutableMap()
+    }
+
+    private fun persistUsernameMapping(username: String, userId: Long) {
+        try {
+            val dir = File(dataDir)
+            if (!dir.exists()) dir.mkdirs()
             Files.write(
-                Paths.get("$outputFilePath$userId.txt"),
-                entry.toByteArray(),
+                usernameMapFile.toPath(),
+                "$username:$userId\n".toByteArray(),
+                StandardOpenOption.CREATE,
                 StandardOpenOption.APPEND
             )
-
-            logger.info("Successfully saved message to $outputFilePath$userId.txt")
         } catch (e: Exception) {
-            logger.error("Error saving message to file: ${e.message}", e)
+            logger.error("Failed to persist username mapping: ${e.message}", e)
         }
     }
-
-    /**
-     * Reads the saved messages from the output file
-     * 
-     * @return The content of the file as a string, or null if the file doesn't exist or can't be read
-     */
-    fun readSavedMessages(): String? {
-        try {
-            val file = File("$outputFilePath$targetUserId.txt")
-            if (!file.exists()) {
-                logger.warn("File does not exist: $outputFilePath$targetUserId.txt")
-                return null
-            }
-
-            val content = Files.readString(Paths.get("$outputFilePath$targetUserId.txt"), StandardCharsets.UTF_8)
-            val maxLength = 150000
-            return if (content.length > maxLength) {
-                content.substring(content.length - maxLength)
-            } else {
-                content
-            }
-        } catch (e: Exception) {
-            logger.error("Error reading saved messages: ${e.message}", e)
-            return null
-        }
-    }
-    fun readSavedMessages(userId: Long): String? {
-        try {
-            val file = File("$outputFilePath$userId.txt")
-            if (!file.exists()) {
-                logger.warn("File does not exist: $outputFilePath$userId.txt")
-                return null
-            }
-
-            val content = Files.readString(Paths.get("$outputFilePath$userId.txt"), StandardCharsets.UTF_8)
-            val maxLength = 150000
-            return if (content.length > maxLength) {
-                content.substring(content.length - maxLength)
-            } else {
-                content
-            }
-        } catch (e: Exception) {
-            logger.error("Error reading saved messages: ${e.message}", e)
-            return null
-        }
-    }
-
 }

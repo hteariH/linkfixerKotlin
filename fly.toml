@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for link-fixer-bot on 2025-03-19T01:31:31+01:00
+# fly.toml app configuration file generated for hydra-manager-bot on 2025-03-19T01:31:31+01:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'link-fixer-bot'
+app = 'hydra-manager-bot'
 primary_region = 'ams'
 
 [build]

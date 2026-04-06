@@ -38,4 +38,4 @@ ENV DOWNLOADS_DIR="/data/downloads"
 RUN mkdir -p $DOWNLOADS_DIR
 
 # Set the entry point to run the application
-ENTRYPOINT ["java", "-jar", "/app/build/libs/linkfixer-1.0-SNAPSHOT.jar"]
+ENTRYPOINT ["java", "-jar", "/app/build/libs/hydra-manager-bot-1.0-SNAPSHOT.jar"]

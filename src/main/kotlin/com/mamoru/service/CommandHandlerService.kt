@@ -1,87 +1,40 @@
 package com.mamoru.service
 
 import com.mamoru.util.Constants
+import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.objects.Message
 import org.slf4j.LoggerFactory
 
-/**
- * Service for handling Telegram bot commands
- */
 @Service
 class CommandHandlerService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
-    private val geminiAIService: GeminiAIService
+    private val geminiAIService: GeminiAIService,
+    @Lazy private val managedBotService: ManagedBotService
 ) {
     private val logger = LoggerFactory.getLogger(CommandHandlerService::class.java)
 
-    /**
-     * Process a command message and return the appropriate response
-     *
-     * @param message The Telegram message containing the command
-     * @return CommandResult containing the response text and any additional data
-     */
     fun handleCommand(message: Message): CommandResult {
         val chatId = message.chatId
         val text = message.text
 
         return when {
-            text.startsWith(Constants.Command.TOGGLE_COUNTER, ignoreCase = true) -> {
-                handleToggleCounter(chatId)
-            }
-            text.startsWith(Constants.Command.TOGGLE_JOKE, ignoreCase = true) -> {
-                handleToggleJoke(chatId)
-            }
-            text.startsWith(Constants.Command.TOGGLE_PICTURE_COMMENT, ignoreCase = true) -> {
-                handleTogglePictureComment(chatId)
-            }
-            text.startsWith(Constants.Command.TOGGLE_AUDIO_TRANSCRIPTION, ignoreCase = true) -> {
-                handleToggleAudioTranscription(chatId)
-            }
-            text.startsWith(Constants.Command.GET_RANDOM_JOKE, ignoreCase = true) -> {
-                handleGetRandomJoke(chatId)
-            }
-            text.startsWith(Constants.Command.SET_JOKE_PROMPT, ignoreCase = true) -> {
-                handleSetJokePrompt(chatId, text)
-            }
-            text.startsWith(Constants.Command.SET_PICTURE_PROMPT, ignoreCase = true) -> {
-                handleSetPicturePrompt(chatId, text)
-            }
-            text.startsWith(Constants.Command.TTS, ignoreCase = true) -> {
-                handleTTS(chatId, text)
-            }
-            else -> {
-                CommandResult(isCommand = false)
-            }
+            text.startsWith(Constants.Command.TOGGLE_JOKE, ignoreCase = true) -> handleToggleJoke(chatId)
+            text.startsWith(Constants.Command.TOGGLE_PICTURE_COMMENT, ignoreCase = true) -> handleTogglePictureComment(chatId)
+            text.startsWith(Constants.Command.GET_RANDOM_JOKE, ignoreCase = true) -> handleGetRandomJoke(chatId)
+            text.startsWith(Constants.Command.SET_JOKE_PROMPT, ignoreCase = true) -> handleSetJokePrompt(chatId, text)
+            text.startsWith(Constants.Command.SET_PICTURE_PROMPT, ignoreCase = true) -> handleSetPicturePrompt(chatId, text)
+            text.startsWith(Constants.Command.CREATE_BOT, ignoreCase = true) -> handleCreateBot(text)
+            text.startsWith(Constants.Command.ACTIVATE_BOT, ignoreCase = true) -> handleActivateBot(text)
+            else -> CommandResult(isCommand = false)
         }
-    }
-
-    private fun handleToggleCounter(chatId: Long): CommandResult {
-        val currentSettings = chatSettingsManagementService.getChatSettings(chatId)
-        val newSetting = !currentSettings.sendCounterUntilWin
-        chatSettingsManagementService.updateSendCounterUntilWin(chatId, newSetting)
-
-        val responseText = if (newSetting) {
-            Constants.Message.COUNTER_ENABLED
-        } else {
-            Constants.Message.COUNTER_DISABLED
-        }
-
-        logger.info("Updated sendCounterUntilWin setting for chat $chatId to $newSetting")
-        return CommandResult(isCommand = true, responseText = responseText)
     }
 
     private fun handleToggleJoke(chatId: Long): CommandResult {
         val currentSettings = chatSettingsManagementService.getChatSettings(chatId)
         val newSetting = !currentSettings.sendRandomJoke
         chatSettingsManagementService.updateSendJoke(chatId, newSetting)
-
-        val responseText = if (newSetting) {
-            Constants.Message.JOKE_ENABLED
-        } else {
-            Constants.Message.JOKE_DISABLED
-        }
-
+        val responseText = if (newSetting) Constants.Message.JOKE_ENABLED else Constants.Message.JOKE_DISABLED
         logger.info("Updated sendRandomJoke setting for chat $chatId to $newSetting")
         return CommandResult(isCommand = true, responseText = responseText)
     }
@@ -90,29 +43,8 @@ class CommandHandlerService(
         val currentSettings = chatSettingsManagementService.getChatSettings(chatId)
         val newSetting = !currentSettings.commentOnPictures
         chatSettingsManagementService.updateCommentOnPictures(chatId, newSetting)
-
-        val responseText = if (newSetting) {
-            Constants.Message.PICTURE_COMMENT_ENABLED
-        } else {
-            Constants.Message.PICTURE_COMMENT_DISABLED
-        }
-
+        val responseText = if (newSetting) Constants.Message.PICTURE_COMMENT_ENABLED else Constants.Message.PICTURE_COMMENT_DISABLED
         logger.info("Updated commentOnPictures setting for chat $chatId to $newSetting")
-        return CommandResult(isCommand = true, responseText = responseText)
-    }
-
-    private fun handleToggleAudioTranscription(chatId: Long): CommandResult {
-        val currentSettings = chatSettingsManagementService.getChatSettings(chatId)
-        val newSetting = !currentSettings.transcribeAudio
-        chatSettingsManagementService.updateTranscribeAudio(chatId, newSetting)
-
-        val responseText = if (newSetting) {
-            Constants.Message.AUDIO_TRANSCRIPTION_ENABLED
-        } else {
-            Constants.Message.AUDIO_TRANSCRIPTION_DISABLED
-        }
-
-        logger.info("Updated transcribeAudio setting for chat $chatId to $newSetting")
         return CommandResult(isCommand = true, responseText = responseText)
     }
 
@@ -129,10 +61,7 @@ class CommandHandlerService(
             logger.info("Updated joke prompt for chat $chatId")
             CommandResult(isCommand = true, responseText = Constants.Message.JOKE_PROMPT_UPDATED)
         } else {
-            CommandResult(
-                isCommand = true,
-                responseText = Constants.Message.JOKE_PROMPT_HELP
-            )
+            CommandResult(isCommand = true, responseText = Constants.Message.JOKE_PROMPT_HELP)
         }
     }
 
@@ -143,37 +72,64 @@ class CommandHandlerService(
             logger.info("Updated picture prompt for chat $chatId")
             CommandResult(isCommand = true, responseText = Constants.Message.PICTURE_PROMPT_UPDATED)
         } else {
-            CommandResult(
-                isCommand = true,
-                responseText = Constants.Message.PICTURE_PROMPT_HELP
-            )
+            CommandResult(isCommand = true, responseText = Constants.Message.PICTURE_PROMPT_HELP)
         }
     }
 
+    private fun handleCreateBot(text: String): CommandResult {
+        val args = parseArgs(text, Constants.Command.CREATE_BOT)
+        if (args.size < 2) {
+            return CommandResult(
+                isCommand = true,
+                responseText = "Usage: /createBot <suggestedBotUsername> <targetUsername|userId>\n" +
+                    "Example: /createBot KiokBot kiok\n" +
+                    "Example: /createBot KiokBot 426020724"
+            )
+        }
+        val suggestedUsername = args[0]
+        val targetUsername = args[1].removePrefix("@")
+
+        val link = managedBotService.generateCreationLink(suggestedUsername)
+        logger.info("Generated creation link for managed bot $suggestedUsername -> @$targetUsername")
+        return CommandResult(
+            isCommand = true,
+            responseText = "Use this link to create the bot:\n$link\n\n" +
+                "After creation, activate it with:\n/activateBot $suggestedUsername $targetUsername"
+        )
+    }
+
+    private fun handleActivateBot(text: String): CommandResult {
+        val args = parseArgs(text, Constants.Command.ACTIVATE_BOT)
+        if (args.size < 2) {
+            return CommandResult(
+                isCommand = true,
+                responseText = "Usage: /activateBot <botUsername> <targetUsername|userId>\n" +
+                    "Example: /activateBot KiokBot kiok\n" +
+                    "Example: /activateBot KiokBot 426020724"
+            )
+        }
+        val botUsername = args[0].removePrefix("@")
+        val targetUsername = args[1].removePrefix("@")
+
+        logger.info("Activating managed bot $botUsername for @$targetUsername")
+        val result = managedBotService.activateManagedBot(botUsername, targetUsername)
+        return CommandResult(isCommand = true, responseText = result)
+    }
+
     /**
-     * Handle the /tts command to generate a text-to-speech response
-     *
-     * @param chatId The chat ID
-     * @param text The command text including the text to convert to speech
-     * @return CommandResult containing the response text
+     * Parses arguments after a command, stripping the optional @BotName suffix.
+     * Handles both "/cmd arg1 arg2" and "/cmd@BotName arg1 arg2" formats.
      */
-    private fun handleTTS(chatId: Long, text: String): CommandResult {
-        val textToConvert = text.substringAfter(Constants.Command.TTS).trim()
-        return if (textToConvert.isNotEmpty()) {
-            val ttsResponse = geminiAIService.textToSpeech(text)
-            logger.info("Generated TTS response for chat $chatId")
-            CommandResult(isCommand = true, responseText = ttsResponse)
+    private fun parseArgs(text: String, command: String): List<String> {
+        val afterCommand = text.substringAfter(command, "")
+        val withoutBotSuffix = if (afterCommand.startsWith("@")) {
+            afterCommand.substringAfter(" ", "").trim()
         } else {
-            CommandResult(
-                isCommand = true,
-                responseText = Constants.Message.TTS_HELP
-            )
+            afterCommand.trim()
         }
+        return withoutBotSuffix.split("\\s+".toRegex()).filter { it.isNotBlank() }
     }
 
-    /**
-     * Data class to hold the result of command processing
-     */
     data class CommandResult(
         val isCommand: Boolean,
         val responseText: String? = null
