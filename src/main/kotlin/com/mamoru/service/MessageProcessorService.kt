@@ -73,7 +73,7 @@ class MessageProcessorService(
     private fun isBotRepliedTo(message: Message, botUsername: String): Boolean {
         val replyToUser = message.replyToMessage?.from ?: return false
         return replyToUser.userName.equals(botUsername, ignoreCase = true) ||
-                replyToUser.isBot && replyToUser.firstName.equals(botUsername, ignoreCase = true)
+                replyToUser.isBot && replyToUser.userName.equals(botUsername, ignoreCase = true)
     }
 
     private fun containsZelenskyMention(text: String): Boolean =
