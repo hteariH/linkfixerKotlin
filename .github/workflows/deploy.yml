@@ -57,6 +57,16 @@ jobs:
           echo "BOT_NAME=${{ secrets.BOT_NAME }}" >> .env
           echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" >> .env
 
+      - name: Prepare remote directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo mkdir -p /opt/hydra-manager-bot/data/logs
+            sudo chown -R $USER:$USER /opt/hydra-manager-bot
+
       - name: Copy files via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -75,10 +85,6 @@ jobs:
           script: |
             # Authenticate server with GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Ensure project directory exists
-            sudo mkdir -p /opt/hydra-manager-bot/data/logs
-            sudo chown -R $USER:$USER /opt/hydra-manager-bot
             
             # Change to project directory
             cd /opt/hydra-manager-bot
