@@ -1,10 +1,12 @@
 package com.mamoru.service
 
+import com.mamoru.HydraManagerBot
 import com.mamoru.config.TelegramBotConfig
 import com.mamoru.entity.ManagedBot
 import com.mamoru.factory.TelegramBotFactory
 import com.mamoru.repository.ManagedBotRepository
 import org.slf4j.LoggerFactory
+import org.springframework.context.annotation.Lazy
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -12,6 +14,9 @@ import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
 import org.telegram.telegrambots.meta.TelegramBotsApi
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
+import java.util.concurrent.ConcurrentHashMap
+
+data class PendingCreation(val targetUsername: String, val chatId: Long)
 
 @Service
 class ManagedBotService(
@@ -19,16 +24,50 @@ class ManagedBotService(
     private val telegramBotFactory: TelegramBotFactory,
     private val telegramBotsApi: TelegramBotsApi,
     private val botConfig: TelegramBotConfig,
-    private val messageAnalyzerService: MessageAnalyzerService
+    private val messageAnalyzerService: MessageAnalyzerService,
+    @Lazy private val mainBot: HydraManagerBot
 ) {
     private val logger = LoggerFactory.getLogger(ManagedBotService::class.java)
     private val restTemplate = RestTemplate()
     private val apiBase = "https://api.telegram.org/bot"
 
+    // suggestedUsername (lowercase) -> pending creation info
+    private val pendingCreations = ConcurrentHashMap<String, PendingCreation>()
+
     fun generateCreationLink(suggestedBotUsername: String): String =
         "https://t.me/newbot/${botConfig.name}/$suggestedBotUsername?name=$suggestedBotUsername"
 
-    fun activateManagedBot(botUsername: String, targetUsername: String): String {
+    fun storePendingCreation(suggestedUsername: String, targetUsername: String, chatId: Long) {
+        pendingCreations[suggestedUsername.lowercase()] = PendingCreation(targetUsername, chatId)
+        logger.info("Stored pending creation: @$suggestedUsername -> $targetUsername (chatId=$chatId)")
+    }
+
+    /** Called automatically when a managed_bot update is received. */
+    fun handleManagedBotCreated(botId: Long, botUsername: String) {
+        val pending = pendingCreations.remove(botUsername.lowercase())
+        if (pending == null) {
+            logger.warn("Received managed_bot update for @$botUsername but no pending creation found")
+            return
+        }
+
+        val result = activateManagedBotInternal(botUsername, botId, pending.targetUsername)
+        mainBot.sendMessageToChat(pending.chatId, result)
+    }
+
+    fun activateManagedBot(botUsername: String, targetUsername: String, botId: Long? = null): String {
+        if (managedBotRepository.findByBotUsername(botUsername) != null) {
+            return "Bot @$botUsername is already registered."
+        }
+
+        val resolvedBotId = botId ?: tryGetChatId(botUsername)
+            ?: return "Could not resolve @$botUsername — Telegram returned 'chat not found'.\n" +
+                "Provide the bot's numeric ID directly:\n" +
+                "/activateBot $botUsername $targetUsername <botId>"
+
+        return activateManagedBotInternal(botUsername, resolvedBotId, targetUsername)
+    }
+
+    private fun activateManagedBotInternal(botUsername: String, botId: Long, targetUsername: String): String {
         if (managedBotRepository.findByBotUsername(botUsername) != null) {
             return "Bot @$botUsername is already registered."
         }
@@ -40,7 +79,6 @@ class ManagedBotService(
                 "They need to send at least one message in a chat where this bot is active first."
 
         return try {
-            val botId = getChatId(botUsername)
             val token = fetchManagedBotToken(botId)
             val managedBot = managedBotRepository.save(
                 ManagedBot(botUsername = botUsername, botToken = token, targetUserId = targetUserId)
@@ -76,10 +114,15 @@ class ManagedBotService(
         }
     }
 
-    private fun getChatId(username: String): Long {
-        @Suppress("UNCHECKED_CAST")
-        val result = post("getChat", mapOf("chat_id" to "@$username")) as Map<String, Any>
-        return (result["id"] as Number).toLong()
+    private fun tryGetChatId(username: String): Long? {
+        return try {
+            @Suppress("UNCHECKED_CAST")
+            val result = post("getChat", mapOf("chat_id" to "@$username")) as Map<String, Any>
+            (result["id"] as Number).toLong()
+        } catch (e: Exception) {
+            logger.warn("getChat failed for @$username: ${e.message}")
+            null
+        }
     }
 
     private fun fetchManagedBotToken(botId: Long): String {

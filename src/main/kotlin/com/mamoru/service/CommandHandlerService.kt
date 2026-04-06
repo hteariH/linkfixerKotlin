@@ -24,7 +24,7 @@ class CommandHandlerService(
             text.startsWith(Constants.Command.GET_RANDOM_JOKE, ignoreCase = true) -> handleGetRandomJoke(chatId)
             text.startsWith(Constants.Command.SET_JOKE_PROMPT, ignoreCase = true) -> handleSetJokePrompt(chatId, text)
             text.startsWith(Constants.Command.SET_PICTURE_PROMPT, ignoreCase = true) -> handleSetPicturePrompt(chatId, text)
-            text.startsWith(Constants.Command.CREATE_BOT, ignoreCase = true) -> handleCreateBot(text)
+            text.startsWith(Constants.Command.CREATE_BOT, ignoreCase = true) -> handleCreateBot(text, message.chatId)
             text.startsWith(Constants.Command.ACTIVATE_BOT, ignoreCase = true) -> handleActivateBot(text)
             else -> CommandResult(isCommand = false)
         }
@@ -76,7 +76,7 @@ class CommandHandlerService(
         }
     }
 
-    private fun handleCreateBot(text: String): CommandResult {
+    private fun handleCreateBot(text: String, chatId: Long): CommandResult {
         val args = parseArgs(text, Constants.Command.CREATE_BOT)
         if (args.size < 2) {
             return CommandResult(
@@ -89,12 +89,14 @@ class CommandHandlerService(
         val suggestedUsername = args[0]
         val targetUsername = args[1].removePrefix("@")
 
+        managedBotService.storePendingCreation(suggestedUsername, targetUsername, chatId)
         val link = managedBotService.generateCreationLink(suggestedUsername)
         logger.info("Generated creation link for managed bot $suggestedUsername -> @$targetUsername")
         return CommandResult(
             isCommand = true,
             responseText = "Use this link to create the bot:\n$link\n\n" +
-                "After creation, activate it with:\n/activateBot $suggestedUsername $targetUsername"
+                "The bot will activate automatically once created.\n" +
+                "If that fails, run: /activateBot $suggestedUsername $targetUsername"
         )
     }
 
@@ -103,16 +105,17 @@ class CommandHandlerService(
         if (args.size < 2) {
             return CommandResult(
                 isCommand = true,
-                responseText = "Usage: /activateBot <botUsername> <targetUsername|userId>\n" +
+                responseText = "Usage: /activateBot <botUsername> <targetUsername|userId> [botId]\n" +
                     "Example: /activateBot KiokBot kiok\n" +
-                    "Example: /activateBot KiokBot 426020724"
+                    "Example: /activateBot KiokBot kiok 7654321098"
             )
         }
         val botUsername = args[0].removePrefix("@")
         val targetUsername = args[1].removePrefix("@")
+        val botId = args.getOrNull(2)?.toLongOrNull()
 
-        logger.info("Activating managed bot $botUsername for @$targetUsername")
-        val result = managedBotService.activateManagedBot(botUsername, targetUsername)
+        logger.info("Activating managed bot $botUsername for @$targetUsername (botId=$botId)")
+        val result = managedBotService.activateManagedBot(botUsername, targetUsername, botId)
         return CommandResult(isCommand = true, responseText = result)
     }
 
