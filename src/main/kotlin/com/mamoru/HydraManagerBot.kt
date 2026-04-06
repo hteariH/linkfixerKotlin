@@ -75,7 +75,10 @@ open class HydraManagerBot(
                     if (index == 0) sendMessage.replyToMessageId = message.messageId
                     try {
                         val sent = execute(sendMessage)
-                        if (isManaged) messageCacheService.trackSentMessage(message.chatId, sent.messageId)
+                        if (isManaged) messageCacheService.cacheSentMessage(
+                            message.chatId, sent.messageId, part, botName,
+                            replyToMessageId = if (index == 0) message.messageId else null
+                        )
                         logger.info("Sent response to chat ${message.chatId}")
                     } catch (e: TelegramApiException) {
                         logger.error("Failed to send mention response: ${e.message}", e)

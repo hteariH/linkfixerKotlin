@@ -37,6 +37,22 @@ class MessageCacheService {
         )
     }
 
+    fun cacheSentMessage(chatId: Long, messageId: Int, text: String?, botUsername: String, replyToMessageId: Int? = null) {
+        val chatMessages = cache.getOrPut(chatId) {
+            object : LinkedHashMap<Int, CachedMessage>(maxPerChat, 0.75f, false) {
+                override fun removeEldestEntry(eldest: Map.Entry<Int, CachedMessage>) = size > maxPerChat
+            }
+        }
+        chatMessages[messageId] = CachedMessage(
+            messageId = messageId,
+            text = text,
+            fromUsername = botUsername,
+            replyToMessageId = replyToMessageId
+        )
+        ownMessages.getOrPut(chatId) { java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap()) }
+            .add(messageId)
+    }
+
     fun trackSentMessage(chatId: Long, messageId: Int) {
         ownMessages.getOrPut(chatId) { java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap()) }
             .add(messageId)
