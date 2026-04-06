@@ -36,7 +36,18 @@ open class HydraManagerBot(
             if (targetUserId == null) {
                 messageAnalyzerService.analyzeMessageIfFromTargetUser(message)
             }
-            if (!message.hasText()) return
+            val hasContent = message.hasText() || (targetUserId != null && message.caption != null)
+            if (targetUserId != null) {
+                logger.debug("[{}] Update received: chat={} msgId={} from=@{} hasText={} hasCaption={} replyToId={}",
+                    botName, chatId, message.messageId,
+                    message.from?.userName,
+                    message.hasText(), message.caption != null,
+                    message.replyToMessage?.messageId)
+            }
+            if (!hasContent) {
+                if (targetUserId != null) logger.debug("[{}] Skipping — no text/caption", botName)
+                return
+            }
 
             if (targetUserId == null) {
                 val commandResult = commandHandlerService.handleCommand(message)
@@ -57,6 +68,9 @@ open class HydraManagerBot(
         val replyChain = if (targetUserId != null)
             messageCacheService.getReplyChain(message.chatId, message.messageId)
         else emptyList()
+        if (targetUserId != null) {
+            logger.debug("[{}] Processing message, replyChain={} msgs", botName, replyChain.size)
+        }
 
         val result = messageProcessorService.processTextMessage(
             message, this, botToken, botName, targetUserId, replyChain
@@ -75,10 +89,13 @@ open class HydraManagerBot(
                     if (index == 0) sendMessage.replyToMessageId = message.messageId
                     try {
                         val sent = execute(sendMessage)
-                        if (isManaged) messageCacheService.cacheSentMessage(
-                            message.chatId, sent.messageId, part, botName,
-                            replyToMessageId = if (index == 0) message.messageId else null
-                        )
+                        if (isManaged) {
+                            messageCacheService.cacheSentMessage(
+                                message.chatId, sent.messageId, part, botName,
+                                replyToMessageId = if (index == 0) message.messageId else null
+                            )
+                            logger.debug("[{}] Cached own sent message id={}", botName, sent.messageId)
+                        }
                         logger.info("Sent response to chat ${message.chatId}")
                     } catch (e: TelegramApiException) {
                         logger.error("Failed to send mention response: ${e.message}", e)
