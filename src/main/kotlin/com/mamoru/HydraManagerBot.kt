@@ -35,10 +35,12 @@ open class HydraManagerBot(
 
             if (!message.hasText()) return
 
-            val commandResult = commandHandlerService.handleCommand(message)
-            if (commandResult.isCommand) {
-                commandResult.responseText?.let { sendMessageToChat(chatId, it) }
-                return
+            if (targetUserId == null) {
+                val commandResult = commandHandlerService.handleCommand(message)
+                if (commandResult.isCommand) {
+                    commandResult.responseText?.let { sendMessageToChat(chatId, it) }
+                    return
+                }
             }
 
             processTextMessage(message)
