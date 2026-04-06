@@ -126,7 +126,7 @@ class ManagedBotService(
     }
 
     private fun fetchManagedBotToken(botId: Long): String {
-        return post("getManagedBotToken", mapOf("bot_user_id" to botId)) as String
+        return post("getManagedBotToken", mapOf("user_id" to botId)) as String
     }
 
     private fun post(method: String, params: Map<String, Any>): Any {
