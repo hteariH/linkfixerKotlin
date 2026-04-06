@@ -9,7 +9,8 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot
 @Service
 class MessageProcessorService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
-    private val geminiAIService: GeminiAIService
+    private val geminiAIService: GeminiAIService,
+    private val messageCacheService: MessageCacheService
 ) {
     private val logger = LoggerFactory.getLogger(MessageProcessorService::class.java)
 
@@ -28,8 +29,10 @@ class MessageProcessorService(
         val settings = chatSettingsManagementService.getChatSettings(chatId)
         val isManaged = targetUserId != null
         val isPrivateChat = message.chat.isUserChat
+        val isReplyToOwnMessage = isManaged && !isPrivateChat &&
+            message.replyToMessage?.messageId?.let { messageCacheService.isOwnMessage(message.chatId, it) } == true
         val isMentioned = isBotMentioned(text, botUsername) || isBotRepliedTo(message, botUsername) ||
-            (isManaged && isPrivateChat)
+            (isManaged && isPrivateChat) || isReplyToOwnMessage
 
         if (isMentioned && (isManaged || settings.commentOnPictures)) {
             val replyToMessage = message.replyToMessage

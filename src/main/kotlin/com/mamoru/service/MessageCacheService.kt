@@ -19,6 +19,9 @@ class MessageCacheService {
     private val cache = ConcurrentHashMap<Long, LinkedHashMap<Int, CachedMessage>>()
     private val maxPerChat = 300
 
+    // tracks message IDs that this bot instance sent (chatId -> set of messageIds)
+    private val ownMessages = ConcurrentHashMap<Long, MutableSet<Int>>()
+
     fun cache(message: Message) {
         val chatMessages = cache.getOrPut(message.chatId) {
             object : LinkedHashMap<Int, CachedMessage>(maxPerChat, 0.75f, false) {
@@ -33,6 +36,14 @@ class MessageCacheService {
             photoFileId = message.photo?.maxByOrNull { it.fileSize }?.fileId
         )
     }
+
+    fun trackSentMessage(chatId: Long, messageId: Int) {
+        ownMessages.getOrPut(chatId) { java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap()) }
+            .add(messageId)
+    }
+
+    fun isOwnMessage(chatId: Long, messageId: Int): Boolean =
+        ownMessages[chatId]?.contains(messageId) == true
 
     /**
      * Returns messages in chronological order (oldest first) up the reply chain,
