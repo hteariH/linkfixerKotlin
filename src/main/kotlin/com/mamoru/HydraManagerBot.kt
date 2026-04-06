@@ -8,7 +8,7 @@ import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 import org.slf4j.LoggerFactory
 
-class HydraManagerBot(
+open class HydraManagerBot(
     private val botToken: String,
     private val botName: String,
     private val commandHandlerService: CommandHandlerService,
