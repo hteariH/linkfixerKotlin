@@ -3,6 +3,7 @@ package com.mamoru.service
 import com.google.genai.Client
 import com.google.genai.types.Content
 import com.google.genai.types.Part
+import com.mamoru.service.MessageCacheService.CachedMessage
 import com.mamoru.util.Constants
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
@@ -129,7 +130,8 @@ class GeminiAIService(
         bot: TelegramLongPollingBot? = null,
         botToken: String? = null,
         botUsername: String = "HydraManagerBot",
-        userid: Long
+        userid: Long,
+        replyChain: List<CachedMessage> = emptyList()
     ): ImpersonationResponse {
         try {
             val savedMessages = messageAnalyzerService.readSavedMessages(userid)
@@ -152,12 +154,33 @@ class GeminiAIService(
                 Based on this history, respond to the following message as if you were this person.
             """.trimIndent()))
 
+            if (replyChain.isNotEmpty()) {
+                contentParts.add(Part.fromText("Here is the conversation thread leading up to this message (oldest first):"))
+                for (msg in replyChain) {
+                    val sender = msg.fromUsername ?: "unknown"
+                    contentParts.add(Part.fromText("[${sender}]: ${msg.text ?: "(no text)"}"))
+                    if (msg.photoFileId != null && bot != null && botToken != null) {
+                        try {
+                            val getFile = GetFile()
+                            getFile.fileId = msg.photoFileId
+                            val file = bot.execute(getFile)
+                            val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
+                            val imageBytes = URL(fileUrl).readBytes()
+                            contentParts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+                        } catch (e: Exception) {
+                            logger.warn("Could not download chain image ${msg.photoFileId}: ${e.message}")
+                            contentParts.add(Part.fromText("[image — could not be loaded]"))
+                        }
+                    }
+                }
+            }
+
             if (replyText != null && from != null) {
                 contentParts.add(
                     Part.fromText(
-                        "This is your latest message to which someone replied, use it as additional context: ${
+                        "This is the message being directly replied to: ${
                             replyText.replace("@$botUsername", "", ignoreCase = true)
-                        }, message is sent by: $from"
+                        }, sent by: $from"
                     )
                 )
             }

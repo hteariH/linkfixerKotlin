@@ -16,6 +16,7 @@ open class HydraManagerBot(
     private val messageProcessorService: MessageProcessorService,
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val messageAnalyzerService: MessageAnalyzerService,
+    private val messageCacheService: MessageCacheService,
     // Non-null for managed bots: always impersonates this user when mentioned
     private val targetUserId: Long? = null,
     botOptions: DefaultBotOptions = DefaultBotOptions()
@@ -31,9 +32,10 @@ open class HydraManagerBot(
         val chatId = message.chatId
 
         try {
-           if(targetUserId == null) {
-               messageAnalyzerService.analyzeMessageIfFromTargetUser(message)
-           }
+            messageCacheService.cache(message)
+            if (targetUserId == null) {
+                messageAnalyzerService.analyzeMessageIfFromTargetUser(message)
+            }
             if (!message.hasText()) return
 
             if (targetUserId == null) {
@@ -52,8 +54,12 @@ open class HydraManagerBot(
     }
 
     private fun processTextMessage(message: Message) {
+        val replyChain = if (targetUserId != null)
+            messageCacheService.getReplyChain(message.chatId, message.messageId)
+        else emptyList()
+
         val result = messageProcessorService.processTextMessage(
-            message, this, botToken, botName, targetUserId
+            message, this, botToken, botName, targetUserId, replyChain
         )
 
         val settings = chatSettingsManagementService.getChatSettings(message.chatId)

@@ -18,7 +18,8 @@ class MessageProcessorService(
         bot: TelegramLongPollingBot? = null,
         botToken: String? = null,
         botUsername: String = "HydraManagerBot",
-        targetUserId: Long? = null
+        targetUserId: Long? = null,
+        replyChain: List<MessageCacheService.CachedMessage> = emptyList()
     ): ProcessingResult {
         val text = message.text
         val chatId = message.chatId
@@ -40,7 +41,7 @@ class MessageProcessorService(
             if (isManaged) {
                 // Managed bot: impersonate the linked user in any chat
                 val response = geminiAIService.generateImpersonationResponse(
-                    cleanText, replyText, from, replyPhoto, bot, botToken, botUsername, targetUserId!!
+                    cleanText, replyText, from, replyPhoto, bot, botToken, botUsername, targetUserId!!, replyChain
                 )
                 result.mentionResponse = response.text
                 result.impersonatedUserId = response.impersonatedUserId
