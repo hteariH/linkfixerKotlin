@@ -132,7 +132,8 @@ class GeminiAIService(
         botToken: String? = null,
         botUsername: String = "HydraManagerBot",
         userid: Long,
-        replyChain: List<CachedMessage> = emptyList()
+        replyChain: List<CachedMessage> = emptyList(),
+        recentMessages: List<CachedMessage> = emptyList()
     ): ImpersonationResponse {
         try {
             val savedMessages = messageAnalyzerService.readSavedMessages(userid)
@@ -155,12 +156,29 @@ class GeminiAIService(
                 Based on this history, respond to the following message as if you were this person.
             """.trimIndent()))
 
+            if (recentMessages.isNotEmpty()) {
+                contentParts.add(Part.fromText("Here is the recent chat history for context (oldest first):"))
+                for (msg in recentMessages) {
+                    val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
+                    contentParts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
+                    if (msg.photoFileId != null && bot != null && botToken != null) {
+                        try {
+                            val getFile = GetFile().apply { fileId = msg.photoFileId }
+                            val file = bot.execute(getFile)
+                            val imageBytes = URL("https://api.telegram.org/file/bot${botToken}/${file.filePath}").readBytes()
+                            contentParts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+                        } catch (e: Exception) {
+                            logger.warn("Could not download recent context image ${msg.photoFileId}: ${e.message}")
+                        }
+                    }
+                }
+            }
+
             if (replyChain.isNotEmpty()) {
                 contentParts.add(Part.fromText("Here is the conversation thread leading up to this message (oldest first):"))
                 for (msg in replyChain) {
-                    val sender = msg.fromUsername ?: "unknown"
                     val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
-                    contentParts.add(Part.fromText("[${sender}]: $msgText"))
+                    contentParts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
                     if (msg.photoFileId != null && bot != null && botToken != null) {
                         try {
                             val getFile = GetFile()

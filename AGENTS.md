@@ -1,85 +1,81 @@
-# Project Agents
+# Project Agents: HydraManagerBot
 
-This document describes the key services and components (agents) that make up the **LinkFixerBot** system. Each component has a specific responsibility in processing Telegram updates, handling media, or integrating with AI.
+This document describes the key services and components (agents) that make up the **HydraManagerBot** system. The bot is designed for AI-based impersonation and message processing in Telegram.
 
 ## Core Agents
 
-### 1. **LinkFixerBot**
-- **File**: `src/main/kotlin/com/mamoru/LinkFixerBot.kt`
-- **Role**: The main entry point for Telegram updates. It acts as the primary coordinator, receiving messages and delegating them to the appropriate handler services.
+### 1. **HydraManagerBot**
+- **File**: `src/main/kotlin/com/mamoru/HydraManagerBot.kt`
+- **Role**: The main Telegram bot implementation. It handles incoming updates and coordinates message processing.
 - **Responsibilities**:
     - Receiving updates via `onUpdateReceived`.
-    - Routing text messages to `MessageProcessorService`.
-    - Routing media/voice messages to `MediaHandlerService`.
-    - Sending processed responses back to Telegram.
+    - Managing both primary and managed (impersonation) bot instances.
+    - Delegating text messages to `MessageProcessorService`.
+    - Routing commands to `CommandHandlerService`.
+    - Caching messages for reply chain context.
 
 ### 2. **MessageProcessorService**
 - **File**: `src/main/kotlin/com/mamoru/service/MessageProcessorService.kt`
-- **Role**: Handles text-based logic and determines how a message should be processed.
+- **Role**: Orchestrates the logic for processing text messages and generating AI responses.
 - **Responsibilities**:
-    - Detecting bot mentions and replies.
-    - Orchestrating the URL processing pipeline.
-    - Interfacing with `GeminiAIService` for text generation.
-    - Preparing administrative forwarding for certain messages.
+    - Determining if a message requires an AI response (mentions, replies, or impersonation).
+    - Interfacing with `GeminiAIService` to generate contextual replies.
+    - Handling "comment on pictures" logic.
 
-### 3. **MediaHandlerService**
-- **File**: `src/main/kotlin/com/mamoru/service/MediaHandlerService.kt`
-- **Role**: Manages the downloading and processing of rich media.
-- **Responsibilities**:
-    - Handling TikTok and Instagram URLs by downloading videos via specialized downloader services.
-    - Caching downloaded videos to avoid redundant processing.
-    - Transcribing voice messages using AI.
-
-### 4. **GeminiAIService**
+### 3. **GeminiAIService**
 - **File**: `src/main/kotlin/com/mamoru/service/GeminiAIService.kt`
-- **Role**: Integrates the bot with Google's Gemini AI models.
+- **Role**: Integrates with Google's Gemini AI model.
 - **Responsibilities**:
-    - Generating responses for mentions and impersonations.
-    - Transcribing voice-to-text.
-    - Analyzing images sent in messages.
-    - Performing Text-to-Speech (TTS) operations.
+    - Generating responses based on provided prompts and context.
+    - Managing system instructions for impersonation and general assistance.
+    - Analyzing image content when required.
+
+### 4. **MessageAnalyzerService**
+- **File**: `src/main/kotlin/com/mamoru/service/MessageAnalyzerService.kt`
+- **Role**: Collects and analyzes user message history to build context for AI impersonation.
+- **Responsibilities**:
+    - Saving messages from target users to the database.
+    - Providing historical context for "who am I" type queries.
 
 ## Support Services
 
-### 5. **TikTokDownloaderService & InstagramDownloaderService**
-- **Files**: `src/main/kotlin/com/mamoru/service/TikTokDownloaderService.kt`, `src/main/kotlin/com/mamoru/service/InstagramDownloaderService.kt`
-- **Role**: Low-level downloaders powered by `yt-dlp`.
+### 5. **MessageCacheService**
+- **File**: `src/main/kotlin/com/mamoru/service/MessageCacheService.kt`
+- **Role**: In-memory and persistent cache for message history.
 - **Responsibilities**:
-    - Extracting video IDs from social media URLs.
-    - Executing `yt-dlp` commands to download video and audio streams.
-    - Merging streams into a compatible MP4 format using `ffmpeg`.
+    - Storing recent messages to reconstruct conversation reply chains.
+    - Tracking sent messages to allow the bot to "remember" its own replies.
 
-### 6. **VideoCacheService**
-- **File**: `src/main/kotlin/com/mamoru/service/VideoCacheService.kt`
-- **Role**: An in-memory cache for downloaded video paths.
+### 6. **ManagedBotService**
+- **File**: `src/main/kotlin/com/mamoru/service/ManagedBotService.kt`
+- **Role**: Manages additional "impersonation" bot instances.
 - **Responsibilities**:
-    - Tracking already downloaded videos to speed up response times for duplicate URLs.
+    - Initializing and starting secondary bot instances from the database.
+    - Handling the lifecycle of dynamically added bots.
 
-### 7. **MessageAnalyzerService**
-- **File**: `src/main/kotlin/com/mamoru/service/MessageAnalyzerService.kt`
-- **Role**: Collects and analyzes user message history.
+### 7. **CommandHandlerService**
+- **File**: `src/main/kotlin/com/mamoru/service/CommandHandlerService.kt`
+- **Role**: Processes administrative and user commands.
 - **Responsibilities**:
-    - Saving incoming messages from users to local storage for future AI context (impersonation).
+    - Handling commands like `/start`, `/help`, and chat configuration commands.
+    - Routing specific settings changes to `ChatSettingsManagementService`.
 
-### 8. **ScheduledMessageSenderService**
-- **File**: `src/main/kotlin/com/mamoru/service/ScheduledMessageSenderService.kt`
-- **Role**: Handles background tasks and periodic broadcasts.
-- **Responsibilities**:
-    - Sending daily countdown messages to victory.
-    - Sending daily jokes to configured chats.
-    - Performing scheduled cleanup of video caches and downloaded files.
-
-### 9. **DownloadCleanupService**
-- **File**: `src/main/kotlin/com/mamoru/service/DownloadCleanupService.kt`
-- **Role**: Startup maintenance utility implementing `CommandLineRunner`.
-- **Responsibilities**:
-    - Cleaning the download directory upon application startup to ensure a fresh state.
-    - Handles both TikTok and Instagram download paths, deduplicating if they share the same directory.
-
-## Configuration & Management
-
-### 10. **ChatSettingsManagementService**
+### 8. **ChatSettingsManagementService**
 - **File**: `src/main/kotlin/com/mamoru/service/ChatSettingsManagementService.kt`
 - **Role**: Manages persistent configuration for different Telegram chats.
 - **Responsibilities**:
-    - Storing and retrieving chat-specific settings (e.g., whether to send daily jokes) from the H2 database.
+    - Storing and retrieving chat-specific settings (e.g., AI personality, active features) from MongoDB.
+
+### 9. **ScheduledMessageSenderService**
+- **File**: `src/main/kotlin/com/mamoru/service/ScheduledMessageSenderService.kt`
+- **Role**: Handles background tasks and periodic actions.
+- **Responsibilities**:
+    - Performing scheduled cleanup or status updates (implementation specific).
+
+## Data Access
+
+### 10. **ManagedBotRepository & ChatRepository**
+- **Files**: `src/main/kotlin/com/mamoru/repository/ManagedBotRepository.kt`, `src/main/kotlin/com/mamoru/repository/ChatRepository.kt`
+- **Role**: MongoDB repositories for persistent storage.
+- **Responsibilities**:
+    - Storing bot configurations and chat settings.

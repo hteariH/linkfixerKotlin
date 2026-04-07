@@ -20,7 +20,8 @@ class MessageProcessorService(
         botToken: String? = null,
         botUsername: String = "HydraManagerBot",
         targetUserId: Long? = null,
-        replyChain: List<MessageCacheService.CachedMessage> = emptyList()
+        replyChain: List<MessageCacheService.CachedMessage> = emptyList(),
+        recentMessages: List<MessageCacheService.CachedMessage> = emptyList()
     ): ProcessingResult {
         val text = message.text ?: message.caption ?: ""
         val chatId = message.chatId
@@ -59,7 +60,7 @@ class MessageProcessorService(
                 logger.debug("[{}] Calling impersonation for userId={}, replyChain={} msgs, cleanText='{}'",
                     botUsername, targetUserId, replyChain.size, cleanText.take(80))
                 val response = geminiAIService.generateImpersonationResponse(
-                    cleanText, replyText, from, replyPhoto, bot, botToken, botUsername, targetUserId!!, replyChain
+                    cleanText, replyText, from, replyPhoto, bot, botToken, botUsername, targetUserId!!, replyChain, recentMessages
                 )
                 result.mentionResponse = response.text
                 result.impersonatedUserId = response.impersonatedUserId

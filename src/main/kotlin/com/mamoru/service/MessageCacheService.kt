@@ -11,9 +11,17 @@ class MessageCacheService {
         val messageId: Int,
         val text: String?,
         val fromUsername: String?,
+        val fromFirstName: String? = null,
         val replyToMessageId: Int?,
         val photoFileId: String? = null
-    )
+    ) {
+        fun displayName(): String = when {
+            fromUsername != null && fromFirstName != null -> "$fromFirstName (@$fromUsername)"
+            fromUsername != null -> "@$fromUsername"
+            fromFirstName != null -> fromFirstName
+            else -> "unknown"
+        }
+    }
 
     // chatId -> (messageId -> CachedMessage), capped at maxPerChat entries
     private val cache = ConcurrentHashMap<Long, LinkedHashMap<Int, CachedMessage>>()
@@ -32,6 +40,7 @@ class MessageCacheService {
             messageId = message.messageId,
             text = message.text,
             fromUsername = message.from?.userName,
+            fromFirstName = message.from?.firstName,
             replyToMessageId = message.replyToMessage?.messageId,
             photoFileId = message.photo?.maxByOrNull { it.fileSize }?.fileId
         )
@@ -64,6 +73,17 @@ class MessageCacheService {
 
     fun isOwnMessage(botUsername: String, chatId: Long, messageId: Int): Boolean =
         ownMessages[botUsername.lowercase()]?.get(chatId)?.contains(messageId) == true
+
+    /**
+     * Returns the last [limit] messages in this chat in chronological order (oldest first),
+     * excluding the given [excludeIds] (e.g. current message + reply chain already passed separately).
+     */
+    fun getRecentMessages(chatId: Long, limit: Int, excludeIds: Set<Int> = emptySet()): List<CachedMessage> {
+        val chatMessages = cache[chatId] ?: return emptyList()
+        return chatMessages.values
+            .filter { it.messageId !in excludeIds }
+            .takeLast(limit)
+    }
 
     /**
      * Returns messages in chronological order (oldest first) up the reply chain,

@@ -68,12 +68,19 @@ open class HydraManagerBot(
         val replyChain = if (targetUserId != null)
             messageCacheService.getReplyChain(message.chatId, message.messageId)
         else emptyList()
+
+        val recentMessages = if (targetUserId != null) {
+            val excludeIds = (replyChain.map { it.messageId } + message.messageId).toSet()
+            messageCacheService.getRecentMessages(message.chatId, limit = 30, excludeIds = excludeIds)
+        } else emptyList()
+
         if (targetUserId != null) {
-            logger.debug("[{}] Processing message, replyChain={} msgs", botName, replyChain.size)
+            logger.debug("[{}] Processing message, replyChain={} msgs, recentContext={} msgs",
+                botName, replyChain.size, recentMessages.size)
         }
 
         val result = messageProcessorService.processTextMessage(
-            message, this, botToken, botName, targetUserId, replyChain
+            message, this, botToken, botName, targetUserId, replyChain, recentMessages
         )
 
         val settings = chatSettingsManagementService.getChatSettings(message.chatId)
