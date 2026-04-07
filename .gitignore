@@ -43,3 +43,9 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Project-specific ###
+data/
+cookies.txt
+src/main/resources/cookies.txt
+.junie/
