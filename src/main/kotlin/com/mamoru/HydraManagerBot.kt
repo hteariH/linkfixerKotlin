@@ -27,6 +27,7 @@ open class HydraManagerBot(
     override fun getBotUsername(): String = botName
 
     override fun onUpdateReceived(update: Update) {
+        logger.debug("Received update: {}", update)
         if (!update.hasMessage()) return
         val message = update.message
         val chatId = message.chatId
