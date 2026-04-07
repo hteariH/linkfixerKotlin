@@ -8,11 +8,12 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.mamoru.service.ManagedBotService
 import org.slf4j.LoggerFactory
+import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 
 class ManagedUpdateDeserializer(
     private val managedBotService: ManagedBotService
-) : StdDeserializer<Update>(Update::class.java) {
+) : StdDeserializer<Message>(Message::class.java) {
 
     private val logger = LoggerFactory.getLogger(ManagedUpdateDeserializer::class.java)
 
@@ -21,12 +22,13 @@ class ManagedUpdateDeserializer(
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 
-    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Update {
+    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Message {
         val node = p.readValueAsTree<ObjectNode>()
 
-        node.get("managed_bot")?.let { managedBotNode ->
+        node.get("managed_bot_created")?.let { managedBotNode ->
             try {
                 val botId = managedBotNode.get("bot")?.get("id")?.asLong()
+//                val botId = managedBotNode.get("bot")?.get("id")?.asLong()
                 val botUsername = managedBotNode.get("bot")?.get("username")?.asText()
                 if (botId != null && botUsername != null) {
                     logger.info("Received managed_bot update: @$botUsername (id=$botId)")
@@ -40,6 +42,6 @@ class ManagedUpdateDeserializer(
         }
         node.remove("managed_bot")
 
-        return baseMapper.treeToValue(node, Update::class.java)
+        return baseMapper.treeToValue(node, Message::class.java)
     }
 }

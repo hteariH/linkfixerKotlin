@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.telegram.telegrambots.bots.DefaultBotOptions
 import org.telegram.telegrambots.meta.TelegramBotsApi
-import org.telegram.telegrambots.meta.api.objects.Update
+import org.telegram.telegrambots.meta.api.objects.Message
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
 
@@ -79,7 +79,7 @@ class HydraManagerBotApplication {
                 ?: run { logger.warn("ObjectMapper field is null — managed_bot auto-activation disabled"); return }
 
             mapper.registerModule(
-                SimpleModule().addDeserializer(Update::class.java, ManagedUpdateDeserializer(managedBotService))
+                SimpleModule().addDeserializer(Message::class.java, ManagedUpdateDeserializer(managedBotService))
             )
             logger.info("Successfully patched DefaultBotSession ObjectMapper for managed_bot support")
         } catch (e: Exception) {
