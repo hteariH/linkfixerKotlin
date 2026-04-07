@@ -12,6 +12,6 @@ data class ManagedBot(
     @Indexed(unique = true)
     val botUsername: String,
 
-    val botToken: String,
+    val botId: Long,
     val targetUserId: Long
 )

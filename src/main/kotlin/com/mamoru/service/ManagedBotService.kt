@@ -6,7 +6,10 @@ import com.mamoru.entity.ManagedBot
 import com.mamoru.factory.TelegramBotFactory
 import com.mamoru.repository.ManagedBotRepository
 import org.slf4j.LoggerFactory
+import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.annotation.Lazy
+import org.springframework.context.event.EventListener
+import org.springframework.core.annotation.Order
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -79,9 +82,8 @@ class ManagedBotService(
                 "They need to send at least one message in a chat where this bot is active first."
 
         return try {
-            val token = fetchManagedBotToken(botId)
             val managedBot = managedBotRepository.save(
-                ManagedBot(botUsername = botUsername, botToken = token, targetUserId = targetUserId)
+                ManagedBot(botUsername = botUsername, botId = botId, targetUserId = targetUserId)
             )
             registerBotInstance(managedBot)
             "Bot @$botUsername is now active and will impersonate $targetUsername"
@@ -91,6 +93,8 @@ class ManagedBotService(
         }
     }
 
+    @EventListener(ApplicationReadyEvent::class)
+    @Order(2)
     fun registerAllFromDb() {
         val bots = managedBotRepository.findAll()
         logger.info("Registering ${bots.size} managed bot(s) from database")
@@ -104,11 +108,12 @@ class ManagedBotService(
     }
 
     private fun registerBotInstance(managedBot: ManagedBot) {
-        val bot = telegramBotFactory.createBot(managedBot.botUsername, managedBot.botToken, managedBot.targetUserId)
+        val token = fetchManagedBotToken(managedBot.botId)
+        val bot = telegramBotFactory.createBot(managedBot.botUsername, token, managedBot.targetUserId)
         try {
             telegramBotsApi.registerBot(bot)
             messageAnalyzerService.registerManagedBot(managedBot.botUsername)
-            logger.info("Registered managed bot @${managedBot.botUsername} for userId ${managedBot.targetUserId}")
+            logger.info("Registered managed bot @${managedBot.botUsername} (botId=${managedBot.botId}) for userId ${managedBot.targetUserId}")
         } catch (e: TelegramApiException) {
             logger.error("Failed to register managed bot ${managedBot.botUsername}: ${e.message}", e)
             throw e

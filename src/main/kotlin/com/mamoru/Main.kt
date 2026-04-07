@@ -56,8 +56,6 @@ class HydraManagerBotApplication {
             e.printStackTrace()
         }
 
-        managedBotService.registerAllFromDb()
-
         return bot
     }
 
