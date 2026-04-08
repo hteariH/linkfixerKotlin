@@ -28,6 +28,7 @@ class ManagedBotService(
     private val telegramBotsApi: TelegramBotsApi,
     private val botConfig: TelegramBotConfig,
     private val messageAnalyzerService: MessageAnalyzerService,
+    private val botRegistryService: BotRegistryService,
     @Lazy private val mainBot: HydraManagerBot
 ) {
     private val logger = LoggerFactory.getLogger(ManagedBotService::class.java)
@@ -96,6 +97,7 @@ class ManagedBotService(
     @EventListener(ApplicationReadyEvent::class)
     @Order(2)
     fun registerAllFromDb() {
+        botRegistryService.registerBot(botConfig.name) // Register main bot
         val bots = managedBotRepository.findAll()
         logger.info("Registering ${bots.size} managed bot(s) from database")
         for (bot in bots) {
@@ -113,6 +115,7 @@ class ManagedBotService(
         try {
             telegramBotsApi.registerBot(bot)
             messageAnalyzerService.registerManagedBot(managedBot.botUsername)
+            botRegistryService.registerBot(managedBot.botUsername)
             logger.info("Registered managed bot @${managedBot.botUsername} (botId=${managedBot.botId}) for userId ${managedBot.targetUserId}")
         } catch (e: TelegramApiException) {
             logger.error("Failed to register managed bot ${managedBot.botUsername}: ${e.message}", e)

@@ -23,7 +23,8 @@ data class ImpersonationResponse(
 
 @Service
 class GeminiAIService(
-    private val chatSettingsManagementService: ChatSettingsManagementService
+    private val chatSettingsManagementService: ChatSettingsManagementService,
+    private val botRegistryService: BotRegistryService
 ) {
     @Autowired
     private lateinit var messageAnalyzerService: MessageAnalyzerService
@@ -152,6 +153,8 @@ class GeminiAIService(
                         You are now impersonating a person whose messages are provided below.
                         Your task is to respond to the given message in the same style, tone, and personality as the person you're impersonating.
                         Use the message history to understand their communication style, vocabulary, topics of interest, and personality traits.
+                        
+                        If the person you are replying to is another bot or AI, be concise and avoid getting stuck in a loop.
 
                         Here is the message history of the person you're impersonating:
 
@@ -204,11 +207,12 @@ class GeminiAIService(
                 }
 
                 if (replyText != null && from != null) {
+                    val fromPrefix = if (botRegistryService.isBot(from)) "[BOT] " else ""
                     parts.add(
                         Part.fromText(
                             "This is the message being directly replied to: ${
                                 replyText.replace("@$botUsername", "", ignoreCase = true)
-                            }, sent by: $from"
+                            }, sent by: $fromPrefix$from"
                         )
                     )
                 }

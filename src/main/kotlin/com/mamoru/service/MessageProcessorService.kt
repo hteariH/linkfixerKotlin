@@ -10,7 +10,8 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot
 class MessageProcessorService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val geminiAIService: GeminiAIService,
-    private val messageCacheService: MessageCacheService
+    private val messageCacheService: MessageCacheService,
+    private val botRegistryService: BotRegistryService
 ) {
     private val logger = LoggerFactory.getLogger(MessageProcessorService::class.java)
 
@@ -36,7 +37,32 @@ class MessageProcessorService(
         val byPrivate = isManaged && isPrivateChat
         val byOwnMessage = isManaged && !isPrivateChat &&
             message.replyToMessage?.messageId?.let { messageCacheService.isOwnMessage(botUsername, message.chatId, it) } == true
-        val isMentioned = byMention || byReply || byPrivate || byOwnMessage
+        
+        val senderUsername = message.from?.userName
+        val isFromAnotherBot = botRegistryService.isBot(senderUsername) && 
+                              !senderUsername.equals(botUsername, ignoreCase = true)
+        
+        var isMentioned = byMention || byReply || byPrivate || byOwnMessage
+
+        if (isMentioned && isFromAnotherBot) {
+            val chain = messageCacheService.getReplyChain(chatId, message.messageId)
+            val botMessageCount = chain.count { botRegistryService.isBot(it.fromUsername) }
+            
+            // Safeguard: if more than 2 bot messages in recent chain, reduce probability or stop
+            val probability = when {
+                botMessageCount >= 4 -> 0.0
+                botMessageCount >= 2 -> 0.1
+                else -> 0.5
+            }
+            
+            val shouldRespond = Random.nextDouble() < probability
+            logger.info("[{}] Bot-to-bot interaction detected. Sender: @{}. Bot msgs in chain: {}. Probability: {}. Should respond: {}", 
+                botUsername, senderUsername, botMessageCount, probability, shouldRespond)
+            
+            if (!shouldRespond) {
+                isMentioned = false
+            }
+        }
 
         if (isManaged) {
             logger.debug(
