@@ -142,95 +142,121 @@ class GeminiAIService(
                 return ImpersonationResponse("I don't have enough data to impersonate this person.")
             }
 
-            val contentParts = mutableListOf<Part>()
+            val hasRecentMessages = recentMessages.isNotEmpty()
 
-            contentParts.add(Part.fromText("""
-                You are now impersonating a person whose messages are provided below.
-                Your task is to respond to the given message in the same style, tone, and personality as the person you're impersonating.
-                Use the message history to understand their communication style, vocabulary, topics of interest, and personality traits.
+            fun buildParts(includeRecentMessages: Boolean, includeContextHint: Boolean): List<Part> {
+                val parts = mutableListOf<Part>()
 
-                Here is the message history of the person you're impersonating:
+                val systemPrompt = buildString {
+                    append("""
+                        You are now impersonating a person whose messages are provided below.
+                        Your task is to respond to the given message in the same style, tone, and personality as the person you're impersonating.
+                        Use the message history to understand their communication style, vocabulary, topics of interest, and personality traits.
 
-                $savedMessages
+                        Here is the message history of the person you're impersonating:
 
-                Based on this history, respond to the following message as if you were this person.
-            """.trimIndent()))
+                        $savedMessages
 
-            if (recentMessages.isNotEmpty()) {
-                contentParts.add(Part.fromText("Here is the recent chat history for context (oldest first):"))
-                for (msg in recentMessages) {
-                    val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
-                    contentParts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
-                    if (msg.photoFileId != null && bot != null && botToken != null) {
-                        try {
-                            val getFile = GetFile().apply { fileId = msg.photoFileId }
-                            val file = bot.execute(getFile)
-                            val imageBytes = URL("https://api.telegram.org/file/bot${botToken}/${file.filePath}").readBytes()
-                            contentParts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-                        } catch (e: Exception) {
-                            logger.warn("Could not download recent context image ${msg.photoFileId}: ${e.message}")
+                        Based on this history, respond to the following message as if you were this person.
+                    """.trimIndent())
+                    if (includeContextHint) {
+                        append("\n\nIMPORTANT: If you feel you need recent general chat history to understand the conversational context before responding, reply with exactly '[NEED_CONTEXT]' and nothing else. Otherwise, respond normally as the impersonated person.")
+                    }
+                }
+                parts.add(Part.fromText(systemPrompt))
+
+                if (includeRecentMessages) {
+                    parts.add(Part.fromText("Here is the recent chat history for context (oldest first):"))
+                    for (msg in recentMessages) {
+                        val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
+                        parts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
+                        if (msg.photoFileId != null && bot != null && botToken != null) {
+                            try {
+                                val getFile = GetFile().apply { fileId = msg.photoFileId }
+                                val file = bot.execute(getFile)
+                                val imageBytes = URL("https://api.telegram.org/file/bot${botToken}/${file.filePath}").readBytes()
+                                parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+                            } catch (e: Exception) {
+                                logger.warn("Could not download recent context image ${msg.photoFileId}: ${e.message}")
+                            }
                         }
                     }
                 }
-            }
 
-            if (replyChain.isNotEmpty()) {
-                contentParts.add(Part.fromText("Here is the conversation thread leading up to this message (oldest first):"))
-                for (msg in replyChain) {
-                    val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
-                    contentParts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
-                    if (msg.photoFileId != null && bot != null && botToken != null) {
-                        try {
-                            val getFile = GetFile()
-                            getFile.fileId = msg.photoFileId
-                            val file = bot.execute(getFile)
-                            val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
-                            val imageBytes = URL(fileUrl).readBytes()
-                            contentParts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-                        } catch (e: Exception) {
-                            logger.warn("Could not download chain image ${msg.photoFileId}: ${e.message}")
-                            contentParts.add(Part.fromText("[image — could not be loaded]"))
+                if (replyChain.isNotEmpty()) {
+                    parts.add(Part.fromText("Here is the conversation thread leading up to this message (oldest first):"))
+                    for (msg in replyChain) {
+                        val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
+                        parts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
+                        if (msg.photoFileId != null && bot != null && botToken != null) {
+                            try {
+                                val getFile = GetFile().apply { fileId = msg.photoFileId }
+                                val file = bot.execute(getFile)
+                                val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
+                                val imageBytes = URL(fileUrl).readBytes()
+                                parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+                            } catch (e: Exception) {
+                                logger.warn("Could not download chain image ${msg.photoFileId}: ${e.message}")
+                                parts.add(Part.fromText("[image — could not be loaded]"))
+                            }
                         }
                     }
                 }
-            }
 
-            if (replyText != null && from != null) {
-                contentParts.add(
+                if (replyText != null && from != null) {
+                    parts.add(
+                        Part.fromText(
+                            "This is the message being directly replied to: ${
+                                replyText.replace("@$botUsername", "", ignoreCase = true)
+                            }, sent by: $from"
+                        )
+                    )
+                }
+
+                parts.add(
                     Part.fromText(
-                        "This is the message being directly replied to: ${
-                            replyText.replace("@$botUsername", "", ignoreCase = true)
-                        }, sent by: $from"
+                        "Respond to this message as the person I'm impersonating: ${
+                            messageText.replace("@$botUsername", "", ignoreCase = true)
+                        }"
                     )
                 )
+
+                if (replyPhoto != null && bot != null && botToken != null) {
+                    try {
+                        val getFile = GetFile().apply { fileId = replyPhoto.fileId }
+                        val file = bot.execute(getFile)
+                        val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
+                        val imageBytes = URL(fileUrl).readBytes()
+                        parts.add(Part.fromText("There is an image in the message I'm replying to. Consider it in your response if relevant."))
+                        parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+                    } catch (e: Exception) {
+                        logger.error("Error downloading photo from replied message: ${e.message}", e)
+                        parts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I couldn't download it."))
+                    }
+                }
+
+                return parts
             }
 
-            contentParts.add(
-                Part.fromText(
-                    "Respond to this message as the person I'm impersonating: ${
-                        messageText.replace("@$botUsername", "", ignoreCase = true)
-                    }"
-                )
+            // First pass: no recent messages; hint model it can request them if needed
+            val firstPassParts = buildParts(includeRecentMessages = false, includeContextHint = hasRecentMessages)
+            val firstResponse = generateWithModels(
+                Content.fromParts(*firstPassParts.toTypedArray()),
+                "I couldn't generate a response at this time."
             )
 
-            if (replyPhoto != null && bot != null && botToken != null) {
-                try {
-                    val getFile = GetFile()
-                    getFile.fileId = replyPhoto.fileId
-                    val file = bot.execute(getFile)
-                    val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
-                    val imageBytes = URL(fileUrl).readBytes()
-                    contentParts.add(Part.fromText("There is an image in the message I'm replying to. Consider it in your response if relevant."))
-                    contentParts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-                } catch (e: Exception) {
-                    logger.error("Error downloading photo from replied message: ${e.message}", e)
-                    contentParts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I couldn't download it."))
-                }
+            if (firstResponse.trim() == "[NEED_CONTEXT]" && hasRecentMessages) {
+                logger.info("[{}] Model requested recent context for userId={}, retrying with {} messages",
+                    botUsername, userid, recentMessages.size)
+                val secondPassParts = buildParts(includeRecentMessages = true, includeContextHint = false)
+                val finalResponse = generateWithModels(
+                    Content.fromParts(*secondPassParts.toTypedArray()),
+                    "I couldn't generate a response at this time."
+                )
+                return ImpersonationResponse(finalResponse, userid)
             }
 
-            val content = Content.fromParts(*contentParts.toTypedArray())
-            val responseText = generateWithModels(content, "I couldn't generate a response at this time.")
-            return ImpersonationResponse(responseText, userid)
+            return ImpersonationResponse(firstResponse, userid)
         } catch (e: Exception) {
             logger.error("Error generating impersonation response: ${e.message}", e)
             return ImpersonationResponse("I couldn't generate a response at this time.")
