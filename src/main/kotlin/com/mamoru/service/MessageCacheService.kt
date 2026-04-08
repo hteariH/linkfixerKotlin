@@ -25,7 +25,7 @@ class MessageCacheService {
 
     // chatId -> (messageId -> CachedMessage), capped at maxPerChat entries
     private val cache = ConcurrentHashMap<Long, LinkedHashMap<Int, CachedMessage>>()
-    private val maxPerChat = 300
+    private val maxPerChat = 100
 
     // botUsername (lowercase) -> chatId -> set of sent messageIds
     private val ownMessages = ConcurrentHashMap<String, ConcurrentHashMap<Long, MutableSet<Int>>>()
