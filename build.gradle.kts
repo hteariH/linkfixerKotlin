@@ -27,7 +27,7 @@ dependencies {
 
     implementation("org.telegram:telegrambots:6.8.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
-    implementation("ch.qos.logback:logback-classic:1.4.12")
+    implementation("ch.qos.logback:logback-classic")
     implementation("com.google.genai:google-genai:1.0.0")
 
     testImplementation(kotlin("test"))
