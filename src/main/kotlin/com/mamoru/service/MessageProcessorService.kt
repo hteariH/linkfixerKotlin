@@ -50,9 +50,10 @@ class MessageProcessorService(
             
             // Safeguard: if more than 2 bot messages in recent chain, reduce probability or stop
             val probability = when {
+                botMessageCount >= 6 -> 0.05
                 botMessageCount >= 4 -> 0.2
-                botMessageCount >= 2 -> 0.5
-                else -> 0.7
+                botMessageCount >= 2 -> 0.55
+                else -> 0.75
             }
             
             val shouldRespond = Random.nextDouble() < probability
