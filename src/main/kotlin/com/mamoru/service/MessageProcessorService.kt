@@ -50,15 +50,15 @@ class MessageProcessorService(
             
             // Safeguard: if more than 2 bot messages in recent chain, reduce probability or stop
             val probability = when {
-                botMessageCount >= 4 -> 0.0
-                botMessageCount >= 2 -> 0.1
-                else -> 0.5
+                botMessageCount >= 4 -> 0.2
+                botMessageCount >= 2 -> 0.5
+                else -> 0.7
             }
             
             val shouldRespond = Random.nextDouble() < probability
             logger.info("[{}] Bot-to-bot interaction detected. Sender: @{}. Bot msgs in chain: {}. Probability: {}. Should respond: {}", 
                 botUsername, senderUsername, botMessageCount, probability, shouldRespond)
-            
+            Thread.sleep(10000) //sleep 10s to avoid spamming and imitate real human behavior
             if (!shouldRespond) {
                 isMentioned = false
             }
