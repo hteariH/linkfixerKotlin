@@ -172,11 +172,17 @@ class GroqAIService(
         recentMessages: List<CachedMessage>
     ): ImpersonationResponse {
         try {
-            val savedMessages = messageAnalyzerService.readSavedMessages(userid)
-            if (savedMessages.isNullOrEmpty()) {
+            val rawSavedMessages = messageAnalyzerService.readSavedMessages(userid)
+            if (rawSavedMessages.isNullOrEmpty()) {
                 logger.warn("No saved messages found for impersonation")
                 return ImpersonationResponse("I don't have enough data to impersonate this person.")
             }
+            // Keep only the most recent portion to stay within Groq's token limits
+            val savedMessages = if (rawSavedMessages.length > Constants.AI.GROQ_MAX_SAVED_MESSAGES_CHARS) {
+                logger.info("[{}] Truncating saved messages from {} to {} chars for userId={}",
+                    botUsername, rawSavedMessages.length, Constants.AI.GROQ_MAX_SAVED_MESSAGES_CHARS, userid)
+                rawSavedMessages.takeLast(Constants.AI.GROQ_MAX_SAVED_MESSAGES_CHARS)
+            } else rawSavedMessages
 
             val hasRecentMessages = recentMessages.isNotEmpty()
 
