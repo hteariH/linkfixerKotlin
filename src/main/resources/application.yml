@@ -27,3 +27,11 @@ telegram:
   bot:
     name: HydraManager_Bot
     token: ${HYDRA_BOT_TOKEN}
+
+# AI provider selection: "gemini" (default) or "groq"
+ai:
+  provider: ${AI_PROVIDER:gemini}
+
+groq:
+  api-key: ${GROQ_API_KEY:}
+  base-url: https://api.groq.com/openai/v1

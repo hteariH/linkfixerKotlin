@@ -9,7 +9,7 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot
 @Service
 class MessageProcessorService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
-    private val geminiAIService: GeminiAIService,
+    private val aiService: AIService,
     private val messageCacheService: MessageCacheService,
     private val botRegistryService: BotRegistryService
 ) {
@@ -86,14 +86,14 @@ class MessageProcessorService(
             if (isManaged) {
                 logger.debug("[{}] Calling impersonation for userId={}, replyChain={} msgs, cleanText='{}'",
                     botUsername, targetUserId, replyChain.size, cleanText.take(80))
-                val response = geminiAIService.generateImpersonationResponse(
+                val response = aiService.generateImpersonationResponse(
                     cleanText, replyText, from, replyPhoto, bot, botToken, botUsername, targetUserId!!, replyChain, recentMessages
                 )
                 result.mentionResponse = response.text
                 result.impersonatedUserId = response.impersonatedUserId
                 logger.info("[{}] Generated impersonation response as user {} in chat {}", botUsername, targetUserId, chatId)
             } else {
-                result.mentionResponse = geminiAIService.generateMentionResponse(
+                result.mentionResponse = aiService.generateMentionResponse(
                     cleanText, chatId, replyText, from, replyPhoto, bot, botToken, botUsername
                 )
                 logger.info("Generated mention response in chat $chatId")
@@ -103,7 +103,7 @@ class MessageProcessorService(
         } else if (!isManaged && !isMentioned && settings.commentOnPictures &&
             containsZelenskyMention(text) && settings.sendRandomJoke && Random.nextBoolean()
         ) {
-            result.jokeResponse = geminiAIService.getRandomJoke(chatId)
+            result.jokeResponse = aiService.getRandomJoke(chatId)
             logger.info("Generated joke response for Zelensky mention in chat $chatId")
         }
 

@@ -1,0 +1,8 @@
+{
+  "properties": [
+    {
+      "name": "ai.provider",
+      "type": "java.lang.String",
+      "description": "Description for ai.provider."
+  }
+] }

@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory
 @Service
 class CommandHandlerService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
-    private val geminiAIService: GeminiAIService,
+    private val aiService: AIService,
     @Lazy private val managedBotService: ManagedBotService
 ) {
     private val logger = LoggerFactory.getLogger(CommandHandlerService::class.java)
@@ -49,7 +49,7 @@ class CommandHandlerService(
     }
 
     private fun handleGetRandomJoke(chatId: Long): CommandResult {
-        val joke = geminiAIService.getRandomJoke(chatId)
+        val joke = aiService.getRandomJoke(chatId)
         logger.info("Generated random joke for chat $chatId")
         return CommandResult(isCommand = true, responseText = joke)
     }

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service
 class ScheduledMessageService(
     private val bot: HydraManagerBot,
     private val chatRepository: ChatRepository,
-    private val geminiAIService: GeminiAIService
+    private val aiService: AIService
 ) {
     private val logger = LoggerFactory.getLogger(ScheduledMessageService::class.java)
 
@@ -25,7 +25,7 @@ class ScheduledMessageService(
 
         for (chat in chatsP) {
             if (chat.sendRandomJoke) {
-                bot.sendMessageToChat(chat.chatId, geminiAIService.getRandomJoke(chat.chatId))
+                bot.sendMessageToChat(chat.chatId, aiService.getRandomJoke(chat.chatId))
                 logger.info("Sent scheduled message with joke to chat ${chat.chatId} using bot ${bot.getBotUsername()}")
             }
         }

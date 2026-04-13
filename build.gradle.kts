@@ -30,6 +30,10 @@ dependencies {
     implementation("ch.qos.logback:logback-classic")
     implementation("com.google.genai:google-genai:1.0.0")
 
+    // Spring AI — core OpenAI-compatible client (no autoconfiguration, used for Groq)
+    implementation(platform("org.springframework.ai:spring-ai-bom:1.0.0"))
+    implementation("org.springframework.ai:spring-ai-openai")
+
     testImplementation(kotlin("test"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }

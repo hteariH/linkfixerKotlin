@@ -26,7 +26,18 @@ object Constants {
     object AI {
         const val DEFAULT_MODEL = "gemini-2.5-flash"
         const val BACKUP_MODEL = "gemini-2.5-flash-lite"
-        val MODEL_CANDIDATES = listOf("gemini-3-flash-preview", DEFAULT_MODEL,"gemini-3.1-flash-lite-preview", BACKUP_MODEL)
+        val MODEL_CANDIDATES = listOf("gemini-3-flash-preview", DEFAULT_MODEL, "gemini-3.1-flash-lite-preview", BACKUP_MODEL)
+
+        val GROQ_MODEL_CANDIDATES = listOf(
+            "llama-3.3-70b-versatile",
+            "llama-3.1-70b-versatile",
+            "llama3-70b-8192"
+        )
+        val GROQ_VISION_MODEL_CANDIDATES = listOf(
+            "meta-llama/llama-4-scout-17b-16e-instruct",
+            "meta-llama/llama-4-maverick-17b-128e-instruct"
+        )
+
         const val DEFAULT_JOKE_FAILURE_MESSAGE = "Вибач, я шутку не придумав"
         const val DEFAULT_PICTURE_FAILURE_MESSAGE = "Не можу прокоментувати це зображення"
         const val DEFAULT_JOKE_PROMPT = "Ти - Лідер України, Володимир Зеленський, роскажи актуальну шутку(просто роскажи шутку/анекдот, не вітайся, не роби висновків, також знай що зараз 2025 рік і на виборах президента США переміг Дональд Трамп)"

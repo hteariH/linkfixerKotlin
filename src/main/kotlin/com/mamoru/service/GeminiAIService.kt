@@ -6,6 +6,7 @@ import com.google.genai.types.Part
 import com.mamoru.service.MessageCacheService.CachedMessage
 import com.mamoru.util.Constants
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.objects.PhotoSize
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
@@ -13,19 +14,12 @@ import org.telegram.telegrambots.meta.api.methods.GetFile
 import java.net.URL
 import org.slf4j.LoggerFactory
 
-/**
- * Data class to hold the response from impersonation
- */
-data class ImpersonationResponse(
-    val text: String,
-    val impersonatedUserId: Long? = null
-)
-
 @Service
+@ConditionalOnProperty(name = ["ai.provider"], havingValue = "gemini", matchIfMissing = true)
 class GeminiAIService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val botRegistryService: BotRegistryService
-) {
+) : AIService {
     @Autowired
     private lateinit var messageAnalyzerService: MessageAnalyzerService
     private val logger = LoggerFactory.getLogger(GeminiAIService::class.java)
@@ -64,7 +58,7 @@ class GeminiAIService(
         return failureMessage
     }
 
-    fun getRandomJoke(chatId: Long? = null): String {
+    override fun getRandomJoke(chatId: Long?): String {
         val prompt = if (chatId != null) {
             chatSettingsManagementService.getChatSettings(chatId).jokePrompt
         } else {
@@ -73,15 +67,15 @@ class GeminiAIService(
         return generateWithModels(prompt, Constants.AI.DEFAULT_JOKE_FAILURE_MESSAGE)
     }
 
-    fun generateMentionResponse(
+    override fun generateMentionResponse(
         messageText: String,
         chatId: Long,
-        replyText: String? = null,
-        from: String? = null,
-        replyPhoto: PhotoSize? = null,
-        bot: TelegramLongPollingBot? = null,
-        botToken: String? = null,
-        botUsername: String = "HydraManagerBot"
+        replyText: String?,
+        from: String?,
+        replyPhoto: PhotoSize?,
+        bot: TelegramLongPollingBot?,
+        botToken: String?,
+        botUsername: String
     ): String {
         val picturePrompt = chatSettingsManagementService.getChatSettings(chatId).picturePrompt
         val contentParts = mutableListOf<Part>()
@@ -124,17 +118,17 @@ class GeminiAIService(
         return generateWithModels(content, Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE)
     }
 
-    fun generateImpersonationResponse(
+    override fun generateImpersonationResponse(
         messageText: String,
-        replyText: String? = null,
-        from: String? = null,
-        replyPhoto: PhotoSize? = null,
-        bot: TelegramLongPollingBot? = null,
-        botToken: String? = null,
-        botUsername: String = "HydraManagerBot",
+        replyText: String?,
+        from: String?,
+        replyPhoto: PhotoSize?,
+        bot: TelegramLongPollingBot?,
+        botToken: String?,
+        botUsername: String,
         userid: Long,
-        replyChain: List<CachedMessage> = emptyList(),
-        recentMessages: List<CachedMessage> = emptyList()
+        replyChain: List<CachedMessage>,
+        recentMessages: List<CachedMessage>
     ): ImpersonationResponse {
         try {
             val savedMessages = messageAnalyzerService.readSavedMessages(userid)
