@@ -50,6 +50,7 @@ class GroqAIService(
         failureMessage: String,
         modelCandidates: List<String> = Constants.AI.GROQ_MODEL_CANDIDATES
     ): String {
+        logger.info("Generating content with Groq models: $modelCandidates")
         var lastError: Exception? = null
         for (model in modelCandidates) {
             logger.info("Generating content with Groq model $model")
