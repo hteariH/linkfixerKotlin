@@ -27,7 +27,7 @@ class GroqAIService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val botRegistryService: BotRegistryService,
     @Value("\${groq.api-key}") private val apiKey: String,
-    @Value("\${groq.base-url:https://api.groq.com/openai/v1}") private val baseUrl: String
+    @Value("\${groq.base-url:https://api.groq.com/openai}") private val baseUrl: String
 ) : AIService {
 
     @Autowired

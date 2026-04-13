@@ -34,4 +34,4 @@ ai:
 
 groq:
   api-key: ${GROQ_API_KEY:}
-  base-url: https://api.groq.com/openai/v1
+  base-url: https://api.groq.com/openai
