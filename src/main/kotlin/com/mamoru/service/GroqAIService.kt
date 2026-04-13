@@ -192,8 +192,9 @@ class GroqAIService(
                 val imageBytesList = mutableListOf<ByteArray>()
 
                 if (includeRecentMessages) {
+                    val cappedRecent = recentMessages.takeLast(Constants.AI.GROQ_MAX_RECENT_MESSAGES)
                     userParts.add("Here is the recent chat history for context (oldest first):")
-                    for (msg in recentMessages) {
+                    for (msg in cappedRecent) {
                         val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
                         userParts.add("[${msg.displayName()}]: $msgText")
                         if (msg.photoFileId != null && bot != null && botToken != null) {
@@ -210,8 +211,9 @@ class GroqAIService(
                 }
 
                 if (replyChain.isNotEmpty()) {
+                    val cappedChain = replyChain.takeLast(Constants.AI.GROQ_MAX_REPLY_CHAIN_MESSAGES)
                     userParts.add("Here is the conversation thread leading up to this message (oldest first):")
-                    for (msg in replyChain) {
+                    for (msg in cappedChain) {
                         val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
                         userParts.add("[${msg.displayName()}]: $msgText")
                         if (msg.photoFileId != null && bot != null && botToken != null) {

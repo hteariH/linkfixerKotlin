@@ -37,9 +37,12 @@ object Constants {
             "meta-llama/llama-4-scout-17b-16e-instruct",
             "meta-llama/llama-4-maverick-17b-128e-instruct"
         )
-        // Saved message history is capped to avoid exceeding Groq's TPM limits.
-        // ~12 000 chars ≈ 4 000–6 000 tokens for Cyrillic text.
-        const val GROQ_MAX_SAVED_MESSAGES_CHARS = 12_000
+        // Saved message history is capped to avoid exceeding Groq's token limits.
+        // ~4 000 chars ≈ 1 500–2 000 tokens for Cyrillic text.
+        const val GROQ_MAX_SAVED_MESSAGES_CHARS = 4_000
+        // How many messages from the reply chain / recent history to include
+        const val GROQ_MAX_REPLY_CHAIN_MESSAGES = 10
+        const val GROQ_MAX_RECENT_MESSAGES = 15
 
         const val DEFAULT_JOKE_FAILURE_MESSAGE = "Вибач, я шутку не придумав"
         const val DEFAULT_PICTURE_FAILURE_MESSAGE = "Не можу прокоментувати це зображення"
