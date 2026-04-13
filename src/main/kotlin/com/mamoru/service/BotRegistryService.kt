@@ -20,7 +20,8 @@ class BotRegistryService {
     fun isBot(username: String?): Boolean {
         if (username == null) return false
         val cleanName = username.removePrefix("@").lowercase()
-        return registeredBotUsernames.contains(cleanName)
+        return cleanName.endsWith("bot");
+//        return registeredBotUsernames.contains(cleanName)
     }
 
     fun getAllBotUsernames(): Set<String> = registeredBotUsernames.toSet()

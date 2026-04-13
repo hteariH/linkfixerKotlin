@@ -207,12 +207,14 @@ class GeminiAIService(
                 }
 
                 if (replyText != null && from != null) {
-                    val fromPrefix = if (botRegistryService.isBot(from)) "[BOT] " else ""
+//                    val fromPrefix = if (botRegistryService.isBot(from)) "[BOT] " else ""
                     parts.add(
                         Part.fromText(
                             "This is the message being directly replied to: ${
                                 replyText.replace("@$botUsername", "", ignoreCase = true)
-                            }, sent by: $fromPrefix$from"
+                            }, sent by: " +
+//                                    "$fromPrefix" +
+                                    from
                         )
                     )
                 }
