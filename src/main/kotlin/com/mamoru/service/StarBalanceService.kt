@@ -97,7 +97,7 @@ class StarBalanceService(
             invoice.title = "Пополнение баланса ⭐"
             invoice.description = "100 звёзд для общения с ботом (${COST_PER_MESSAGE} ⭐ за сообщение)"
             invoice.payload = INVOICE_PAYLOAD
-            invoice.providerToken = ""
+//            invoice.providerToken = ""
             invoice.currency = "XTR"
             invoice.prices = listOf(LabeledPrice("100 звёзд", TOP_UP_AMOUNT))
             if (replyToMessageId != null) invoice.replyToMessageId = replyToMessageId
