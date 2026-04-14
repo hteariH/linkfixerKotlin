@@ -19,13 +19,13 @@ class StarBalanceService(
     private val logger = LoggerFactory.getLogger(StarBalanceService::class.java)
 
     companion object {
-        const val COST_PER_MESSAGE = 7
+        const val COST_PER_MESSAGE = 5
 
         /** callback_data suffix → amount in stars */
         val TOP_UP_OPTIONS = linkedMapOf(
-            "topup:7" to 7,
-            "topup:70" to 70,
-            "topup:700" to 700
+            "topup:5" to 5,
+            "topup:50" to 50,
+            "topup:500" to 500
         )
 
         /** Telegram invoice payload for a given callback key */
@@ -57,7 +57,7 @@ class StarBalanceService(
     }
 
     /**
-     * Sends a message with three inline buttons (7 / 70 / 700 ⭐) via the primary bot.
+     * Sends a message with three inline buttons (5 / 50 / 500 ⭐) via the primary bot.
      * Strategy:
      *  1. Try sending to the current chat via primary bot.
      *  2. Try sending to user's private chat via primary bot.
