@@ -7,5 +7,5 @@ import org.springframework.data.mongodb.core.mapping.Document
 data class UserBalance(
     @Id
     val userId: Long,
-    val starBalance: Int = 7
+    val starBalance: Int = 0
 )

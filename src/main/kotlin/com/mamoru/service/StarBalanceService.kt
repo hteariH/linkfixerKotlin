@@ -24,20 +24,20 @@ class StarBalanceService(
     }
 
     fun getBalance(userId: Long): Int =
-        userBalanceRepository.findById(userId).map { it.starBalance }.orElse(0)
+        userBalanceRepository.findById(userId).map { it.starBalance }.orElse(COST_PER_MESSAGE)
 
     fun hasEnoughBalance(userId: Long): Boolean =
         getBalance(userId) >= COST_PER_MESSAGE
 
     fun deductStars(userId: Long, amount: Int = COST_PER_MESSAGE) {
-        val current = userBalanceRepository.findById(userId).orElse(UserBalance(userId, 0))
+        val current = userBalanceRepository.findById(userId).orElse(UserBalance(userId, COST_PER_MESSAGE))
         val newBalance = maxOf(0, current.starBalance - amount)
         userBalanceRepository.save(current.copy(starBalance = newBalance))
         logger.info("Deducted $amount ⭐ from userId=$userId, balance: ${current.starBalance} → $newBalance")
     }
 
     fun addStars(userId: Long, amount: Int) {
-        val current = userBalanceRepository.findById(userId).orElse(UserBalance(userId, 0))
+        val current = userBalanceRepository.findById(userId).orElse(UserBalance(userId, COST_PER_MESSAGE))
         val newBalance = current.starBalance + amount
         userBalanceRepository.save(current.copy(starBalance = newBalance))
         logger.info("Added $amount ⭐ to userId=$userId, balance: ${current.starBalance} → $newBalance")
