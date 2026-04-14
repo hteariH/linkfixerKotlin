@@ -4,9 +4,12 @@ import com.mamoru.service.*
 import org.slf4j.LoggerFactory
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient
 import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
 import org.telegram.telegrambots.meta.api.methods.AnswerPreCheckoutQuery
+import org.telegram.telegrambots.meta.api.methods.invoices.SendInvoice
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.message.Message
+import org.telegram.telegrambots.meta.api.objects.payments.LabeledPrice
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 
@@ -28,6 +31,12 @@ open class HydraManagerBot(
 
     override fun consume(update: Update) {
         logger.debug("Received update: {}", update)
+
+        // Handle top-up button presses
+        if (update.hasCallbackQuery()) {
+            handleCallbackQuery(update)
+            return
+        }
 
         // Handle payment pre-checkout: must be approved before message arrives
         if (update.hasPreCheckoutQuery()) {
@@ -78,6 +87,39 @@ open class HydraManagerBot(
         }
     }
 
+    private fun handleCallbackQuery(update: Update) {
+        val query = update.callbackQuery
+        val data = query.data ?: return
+        if (!StarBalanceService.TOP_UP_OPTIONS.containsKey(data)) return
+
+        val amount = StarBalanceService.TOP_UP_OPTIONS[data] ?: return
+        val payload = StarBalanceService.payloadFor(data) ?: return
+        val chatId = query.message?.chatId?.toString() ?: return
+
+        try {
+            telegramClient.execute(
+                AnswerCallbackQuery.builder().callbackQueryId(query.id).build()
+            )
+        } catch (e: TelegramApiException) {
+            logger.warn("Failed to answer callback query: ${e.message}")
+        }
+
+        try {
+            val invoice = SendInvoice.builder()
+                .chatId(chatId)
+                .title("Пополнить на $amount ⭐")
+                .description("$amount звёзд • ${StarBalanceService.COST_PER_MESSAGE} ⭐ за сообщение")
+                .payload(payload)
+                .currency("XTR")
+                .prices(listOf(LabeledPrice("$amount звёзд", amount)))
+                .build()
+            telegramClient.execute(invoice)
+            logger.info("Sent $amount ⭐ invoice to chatId=$chatId via callback")
+        } catch (e: TelegramApiException) {
+            logger.error("Failed to send invoice for callback data=$data: ${e.message}", e)
+        }
+    }
+
     private fun handlePreCheckoutQuery(update: Update) {
         val query = update.preCheckoutQuery
         try {
@@ -92,7 +134,7 @@ open class HydraManagerBot(
     private fun handleSuccessfulPayment(message: Message) {
         val payment = message.successfulPayment
         val userId = message.from?.id ?: return
-        if (payment.invoicePayload == StarBalanceService.INVOICE_PAYLOAD && payment.currency == "XTR") {
+        if (payment.invoicePayload in StarBalanceService.INVOICE_PAYLOADS && payment.currency == "XTR") {
             val amount = payment.totalAmount
             starBalanceService.addStars(userId, amount)
             val newBalance = starBalanceService.getBalance(userId)

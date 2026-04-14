@@ -54,7 +54,7 @@ jobs:
           echo "IMAGE_REPO=${{ env.IMAGE_REPO }}" >> .env
           echo "IMAGE_TAG=${{ env.IMAGE_TAG }}" >> .env
           echo "BOT_NAME=${{ secrets.BOT_NAME }}" >> .env
-          echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" >> .env
+          echo "GOOGLE_API_KEY=${{ secrets.PAID_GOOGLE_API_KEY }}" >> .env
           echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
           echo "AI_PROVIDER=${{ secrets.AI_PROVIDER }}" >> .env
           echo "HYDRA_BOT_TOKEN=${{ secrets.HYDRA_BOT_TOKEN }}" >> .env

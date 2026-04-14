@@ -4,9 +4,10 @@ import com.mamoru.entity.UserBalance
 import com.mamoru.repository.UserBalanceRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import org.telegram.telegrambots.meta.api.methods.invoices.SendInvoice
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
-import org.telegram.telegrambots.meta.api.objects.payments.LabeledPrice
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 import org.telegram.telegrambots.meta.generics.TelegramClient
 
@@ -19,8 +20,20 @@ class StarBalanceService(
 
     companion object {
         const val COST_PER_MESSAGE = 7
-        const val TOP_UP_AMOUNT = 100
-        const val INVOICE_PAYLOAD = "stars_topup_100"
+
+        /** callback_data suffix → amount in stars */
+        val TOP_UP_OPTIONS = linkedMapOf(
+            "topup:7" to 7,
+            "topup:70" to 70,
+            "topup:700" to 700
+        )
+
+        /** Telegram invoice payload for a given callback key */
+        fun payloadFor(callbackData: String): String? =
+            TOP_UP_OPTIONS[callbackData]?.let { "stars_topup_$it" }
+
+        val INVOICE_PAYLOADS: Set<String> =
+            TOP_UP_OPTIONS.values.map { "stars_topup_$it" }.toSet()
     }
 
     fun getBalance(userId: Long): Int =
@@ -44,16 +57,11 @@ class StarBalanceService(
     }
 
     /**
-     * Sends a Stars invoice via the primary bot (HydraManagerBot).
+     * Sends a message with three inline buttons (7 / 70 / 700 ⭐) via the primary bot.
      * Strategy:
-     *  1. Try sending to current chat via primary bot's client (if primary bot is in the chat).
-     *  2. Try sending to user's private chat via primary bot's client (if user has started it).
-     *  3. Fall back: send a text message via the caller's client with a mention of the primary bot.
-     *
-     * [callerClient] is the TelegramClient of the bot that triggered the balance check.
-     * [chatId] is the chat where the interaction happened.
-     * [userId] is the user who triggered the bot.
-     * [replyToMessageId] is the message to reply to in the current chat.
+     *  1. Try sending to the current chat via primary bot.
+     *  2. Try sending to user's private chat via primary bot.
+     *  3. Fallback: plain text via caller's client.
      */
     fun sendStarInvoice(
         callerClient: TelegramClient,
@@ -65,17 +73,17 @@ class StarBalanceService(
         val primaryBotName = primaryBotHolder.botName
 
         if (primaryClient == null) {
-            logger.warn("Primary bot client not set in PrimaryBotHolder, cannot send invoice")
+            logger.warn("Primary bot client not set in PrimaryBotHolder, cannot send invoice selector")
             return
         }
 
-        // 1. Try to send invoice to the current chat via the primary bot
-        if (sendInvoice(primaryClient, chatId.toString(), replyToMessageId)) return
+        // 1. Try current chat
+        if (sendSelectionMessage(primaryClient, chatId.toString(), replyToMessageId)) return
 
-        // 2. Try to send invoice to the user's private chat via the primary bot
-        if (sendInvoice(primaryClient, userId.toString(), null)) return
+        // 2. Try user's private chat
+        if (sendSelectionMessage(primaryClient, userId.toString(), null)) return
 
-        // 3. Fallback: instruct user to top up via the primary bot
+        // 3. Fallback: plain text
         try {
             val msg = SendMessage.builder()
                 .chatId(chatId.toString())
@@ -89,21 +97,34 @@ class StarBalanceService(
         }
     }
 
-    private fun sendInvoice(client: TelegramClient, chatId: String, replyToMessageId: Int?): Boolean {
+    private fun sendSelectionMessage(
+        client: TelegramClient,
+        chatId: String,
+        replyToMessageId: Int?
+    ): Boolean {
         return try {
-            val builder = SendInvoice.builder()
+            val row = InlineKeyboardRow(
+                TOP_UP_OPTIONS.entries.map { (callbackData, amount) ->
+                    InlineKeyboardButton.builder()
+                        .text("$amount ⭐")
+                        .callbackData(callbackData)
+                        .build()
+                }
+            )
+            val keyboard = InlineKeyboardMarkup.builder()
+                .keyboardRow(row)
+                .build()
+
+            val builder = SendMessage.builder()
                 .chatId(chatId)
-                .title("Пополнение баланса ⭐")
-                .description("100 звёзд для общения с ботом (${COST_PER_MESSAGE} ⭐ за сообщение)")
-                .payload(INVOICE_PAYLOAD)
-                .currency("XTR")
-                .prices(listOf(LabeledPrice("100 звёзд", TOP_UP_AMOUNT)))
+                .text("У тебя недостаточно звёзд ⭐ для ответа бота (${COST_PER_MESSAGE} ⭐ за сообщение).\nВыбери сколько пополнить:")
+                .replyMarkup(keyboard)
             if (replyToMessageId != null) builder.replyToMessageId(replyToMessageId)
             client.execute(builder.build())
-            logger.info("Sent Stars invoice to chatId=$chatId via primary bot")
+            logger.info("Sent top-up selector to chatId=$chatId")
             true
         } catch (e: TelegramApiException) {
-            logger.warn("Could not send invoice to chatId=$chatId via primary bot: ${e.message}")
+            logger.warn("Could not send top-up selector to chatId=$chatId: ${e.message}")
             false
         }
     }
