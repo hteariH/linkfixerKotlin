@@ -136,7 +136,7 @@ open class HydraManagerBot(
                     "У тебя недостаточно звёзд ⭐ (баланс: $balance). " +
                     "Пополни баланс, чтобы продолжить (${StarBalanceService.COST_PER_MESSAGE} ⭐ за сообщение)."
                 )
-                starBalanceService.sendStarInvoice(this, message.chatId, message.messageId)
+                starBalanceService.sendStarInvoice(this, message.chatId, userId, message.messageId)
                 return
             }
         }

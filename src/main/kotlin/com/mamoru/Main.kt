@@ -6,6 +6,7 @@ import com.mamoru.config.ManagedUpdateDeserializer
 import com.mamoru.config.TelegramBotConfig
 import com.mamoru.factory.TelegramBotFactory
 import com.mamoru.service.ManagedBotService
+import com.mamoru.service.PrimaryBotHolder
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -35,7 +36,8 @@ class HydraManagerBotApplication {
         telegramBotsApi: TelegramBotsApi,
         telegramBotConfig: TelegramBotConfig,
         telegramBotFactory: TelegramBotFactory,
-        managedBotService: ManagedBotService
+        managedBotService: ManagedBotService,
+        primaryBotHolder: PrimaryBotHolder
     ): HydraManagerBot {
         val options = DefaultBotOptions().apply {
             allowedUpdates = listOf(
@@ -47,6 +49,9 @@ class HydraManagerBotApplication {
             )
         }
         val bot = telegramBotFactory.createBot(telegramBotConfig.name, telegramBotConfig.token, botOptions = options)
+        // Register as primary bot so managed bots can delegate invoice sending to it
+        primaryBotHolder.bot = bot
+        primaryBotHolder.botName = telegramBotConfig.name
         try {
             val session = telegramBotsApi.registerBot(bot)
             patchSessionMapper(session, managedBotService)
