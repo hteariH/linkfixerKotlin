@@ -16,9 +16,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.io.ByteArrayResource
 import org.springframework.stereotype.Service
 import org.springframework.util.MimeTypeUtils
-import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.GetFile
-import org.telegram.telegrambots.meta.api.objects.PhotoSize
+import org.telegram.telegrambots.meta.api.objects.photo.PhotoSize
+import org.telegram.telegrambots.meta.generics.TelegramClient
 import java.net.URL
 
 @Service
@@ -113,14 +113,21 @@ class GroqAIService(
         return generateWithModels(listOf(UserMessage(prompt)), Constants.AI.DEFAULT_JOKE_FAILURE_MESSAGE)
     }
 
+    private fun downloadImage(telegramClient: TelegramClient, fileId: String): ByteArray? = try {
+        val tgFile = telegramClient.execute(GetFile.builder().fileId(fileId).build())
+        telegramClient.downloadFile(tgFile).readBytes()
+    } catch (e: Exception) {
+        logger.warn("Could not download image $fileId: ${e.message}")
+        null
+    }
+
     override fun generateMentionResponse(
         messageText: String,
         chatId: Long,
         replyText: String?,
         from: String?,
         replyPhoto: PhotoSize?,
-        bot: TelegramLongPollingBot?,
-        botToken: String?,
+        telegramClient: TelegramClient?,
         botUsername: String
     ): String {
         val picturePrompt = chatSettingsManagementService.getChatSettings(chatId).picturePrompt
@@ -137,15 +144,12 @@ class GroqAIService(
         userParts.add("Respond to this message: ${messageText.replace("@$botUsername", "", ignoreCase = true)}")
 
         val imageBytesList = mutableListOf<ByteArray>()
-        if (replyPhoto != null && bot != null && botToken != null) {
-            try {
-                val getFile = GetFile().apply { fileId = replyPhoto.fileId }
-                val file = bot.execute(getFile)
-                val imageBytes = URL("https://api.telegram.org/file/bot${botToken}/${file.filePath}").readBytes()
+        if (replyPhoto != null && telegramClient != null) {
+            val imageBytes = downloadImage(telegramClient, replyPhoto.fileId)
+            if (imageBytes != null) {
                 imageBytesList.add(imageBytes)
                 userParts.add(Constants.AI.PICTURE_ANALYSIS_INSTRUCTION)
-            } catch (e: Exception) {
-                logger.error("Error downloading photo from replied message: ${e.message}", e)
+            } else {
                 userParts.add("Note: The message I'm replying to contained a photo, but I couldn't download it.")
             }
         } else if (replyPhoto != null) {
@@ -165,8 +169,7 @@ class GroqAIService(
         replyText: String?,
         from: String?,
         replyPhoto: PhotoSize?,
-        bot: TelegramLongPollingBot?,
-        botToken: String?,
+        telegramClient: TelegramClient?,
         botUsername: String,
         userid: Long,
         replyChain: List<CachedMessage>,
@@ -197,15 +200,9 @@ class GroqAIService(
                     for (msg in cappedRecent) {
                         val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
                         userParts.add("[${msg.displayName()}]: $msgText")
-                        if (msg.photoFileId != null && bot != null && botToken != null) {
-                            try {
-                                val getFile = GetFile().apply { fileId = msg.photoFileId }
-                                val file = bot.execute(getFile)
-                                val imageBytes = URL("https://api.telegram.org/file/bot${botToken}/${file.filePath}").readBytes()
-                                imageBytesList.add(imageBytes)
-                            } catch (e: Exception) {
-                                logger.warn("Could not download recent context image ${msg.photoFileId}: ${e.message}")
-                            }
+                        if (msg.photoFileId != null && telegramClient != null) {
+                            val imageBytes = downloadImage(telegramClient, msg.photoFileId)
+                            if (imageBytes != null) imageBytesList.add(imageBytes)
                         }
                     }
                 }
@@ -216,16 +213,10 @@ class GroqAIService(
                     for (msg in cappedChain) {
                         val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
                         userParts.add("[${msg.displayName()}]: $msgText")
-                        if (msg.photoFileId != null && bot != null && botToken != null) {
-                            try {
-                                val getFile = GetFile().apply { fileId = msg.photoFileId }
-                                val file = bot.execute(getFile)
-                                val imageBytes = URL("https://api.telegram.org/file/bot${botToken}/${file.filePath}").readBytes()
-                                imageBytesList.add(imageBytes)
-                            } catch (e: Exception) {
-                                logger.warn("Could not download chain image ${msg.photoFileId}: ${e.message}")
-                                userParts.add("[image — could not be loaded]")
-                            }
+                        if (msg.photoFileId != null && telegramClient != null) {
+                            val imageBytes = downloadImage(telegramClient, msg.photoFileId)
+                            if (imageBytes != null) imageBytesList.add(imageBytes)
+                            else userParts.add("[image — could not be loaded]")
                         }
                     }
                 }
@@ -244,15 +235,12 @@ class GroqAIService(
                     }"
                 )
 
-                if (replyPhoto != null && bot != null && botToken != null) {
-                    try {
-                        val getFile = GetFile().apply { fileId = replyPhoto.fileId }
-                        val file = bot.execute(getFile)
-                        val imageBytes = URL("https://api.telegram.org/file/bot${botToken}/${file.filePath}").readBytes()
+                if (replyPhoto != null && telegramClient != null) {
+                    val imageBytes = downloadImage(telegramClient, replyPhoto.fileId)
+                    if (imageBytes != null) {
                         userParts.add("There is an image in the message I'm replying to. Consider it in your response if relevant.")
                         imageBytesList.add(imageBytes)
-                    } catch (e: Exception) {
-                        logger.error("Error downloading photo from replied message: ${e.message}", e)
+                    } else {
                         userParts.add("Note: The message I'm replying to contained a photo, but I couldn't download it.")
                     }
                 }

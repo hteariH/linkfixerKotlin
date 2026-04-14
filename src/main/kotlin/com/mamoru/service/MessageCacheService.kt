@@ -1,7 +1,7 @@
 package com.mamoru.service
 
 import org.springframework.stereotype.Service
-import org.telegram.telegrambots.meta.api.objects.Message
+import org.telegram.telegrambots.meta.api.objects.message.Message
 import java.util.concurrent.ConcurrentHashMap
 
 @Service

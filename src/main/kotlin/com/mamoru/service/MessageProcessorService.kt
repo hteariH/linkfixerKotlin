@@ -1,10 +1,10 @@
 package com.mamoru.service
 
 import org.springframework.stereotype.Service
-import org.telegram.telegrambots.meta.api.objects.Message
+import org.telegram.telegrambots.meta.api.objects.message.Message
+import org.telegram.telegrambots.meta.generics.TelegramClient
 import org.slf4j.LoggerFactory
 import kotlin.random.Random
-import org.telegram.telegrambots.bots.TelegramLongPollingBot
 
 @Service
 class MessageProcessorService(
@@ -17,12 +17,11 @@ class MessageProcessorService(
 
     fun processTextMessage(
         message: Message,
-        bot: TelegramLongPollingBot? = null,
-        botToken: String? = null,
         botUsername: String = "HydraManagerBot",
         targetUserId: Long? = null,
         replyChain: List<MessageCacheService.CachedMessage> = emptyList(),
-        recentMessages: List<MessageCacheService.CachedMessage> = emptyList()
+        recentMessages: List<MessageCacheService.CachedMessage> = emptyList(),
+        telegramClient: TelegramClient? = null
     ): ProcessingResult {
         val text = message.text ?: message.caption ?: ""
         val chatId = message.chatId
@@ -37,29 +36,28 @@ class MessageProcessorService(
         val byPrivate = isManaged && isPrivateChat
         val byOwnMessage = isManaged && !isPrivateChat &&
             message.replyToMessage?.messageId?.let { messageCacheService.isOwnMessage(botUsername, message.chatId, it) } == true
-        
+
         val senderUsername = message.from?.userName
-        val isFromAnotherBot = botRegistryService.isBot(senderUsername) && 
+        val isFromAnotherBot = botRegistryService.isBot(senderUsername) &&
                               !senderUsername.equals(botUsername, ignoreCase = true)
-        
+
         var isMentioned = byMention || byReply || byPrivate || byOwnMessage
 
         if (isMentioned && isFromAnotherBot) {
             val chain = messageCacheService.getReplyChain(chatId, message.messageId)
             val botMessageCount = chain.count { botRegistryService.isBot(it.fromUsername) }
-            
-            // Safeguard: if more than 2 bot messages in recent chain, reduce probability or stop
+
             val probability = when {
                 botMessageCount >= 6 -> 0.05
                 botMessageCount >= 4 -> 0.2
                 botMessageCount >= 2 -> 0.55
                 else -> 0.75
             }
-            
+
             val shouldRespond = Random.nextDouble() < probability
-            logger.info("[{}] Bot-to-bot interaction detected. Sender: @{}. Bot msgs in chain: {}. Probability: {}. Should respond: {}", 
+            logger.info("[{}] Bot-to-bot interaction detected. Sender: @{}. Bot msgs in chain: {}. Probability: {}. Should respond: {}",
                 botUsername, senderUsername, botMessageCount, probability, shouldRespond)
-            Thread.sleep(10000) //sleep 10s to avoid spamming and imitate real human behavior
+            Thread.sleep(10000)
             if (!shouldRespond) {
                 isMentioned = false
             }
@@ -87,14 +85,17 @@ class MessageProcessorService(
                 logger.debug("[{}] Calling impersonation for userId={}, replyChain={} msgs, cleanText='{}'",
                     botUsername, targetUserId, replyChain.size, cleanText.take(80))
                 val response = aiService.generateImpersonationResponse(
-                    cleanText, replyText, from, replyPhoto, bot, botToken, botUsername, targetUserId!!, replyChain, recentMessages
+                    cleanText, replyText, from, replyPhoto,
+                    telegramClient, botUsername, targetUserId!!,
+                    replyChain, recentMessages
                 )
                 result.mentionResponse = response.text
                 result.impersonatedUserId = response.impersonatedUserId
                 logger.info("[{}] Generated impersonation response as user {} in chat {}", botUsername, targetUserId, chatId)
             } else {
                 result.mentionResponse = aiService.generateMentionResponse(
-                    cleanText, chatId, replyText, from, replyPhoto, bot, botToken, botUsername
+                    cleanText, chatId, replyText, from, replyPhoto,
+                    telegramClient, botUsername
                 )
                 logger.info("Generated mention response in chat $chatId")
             }

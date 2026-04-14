@@ -4,11 +4,11 @@ import com.mamoru.entity.UserBalance
 import com.mamoru.repository.UserBalanceRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.invoices.SendInvoice
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.payments.LabeledPrice
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
+import org.telegram.telegrambots.meta.generics.TelegramClient
 
 @Service
 class StarBalanceService(
@@ -46,62 +46,60 @@ class StarBalanceService(
     /**
      * Sends a Stars invoice via the primary bot (HydraManagerBot).
      * Strategy:
-     *  1. Try sending to current chat via primary bot (if primary bot is in the chat).
-     *  2. Try sending to user's private chat via primary bot (if user has started it).
-     *  3. Fall back: send a text message via the current bot with a deep link.
+     *  1. Try sending to current chat via primary bot's client (if primary bot is in the chat).
+     *  2. Try sending to user's private chat via primary bot's client (if user has started it).
+     *  3. Fall back: send a text message via the caller's client with a mention of the primary bot.
      *
-     * [callerBot] is the bot that triggered the balance check (may be a managed bot).
+     * [callerClient] is the TelegramClient of the bot that triggered the balance check.
      * [chatId] is the chat where the interaction happened.
      * [userId] is the user who triggered the bot.
      * [replyToMessageId] is the message to reply to in the current chat.
      */
     fun sendStarInvoice(
-        callerBot: TelegramLongPollingBot,
+        callerClient: TelegramClient,
         chatId: Long,
         userId: Long,
         replyToMessageId: Int
     ) {
-        val primaryBot = primaryBotHolder.bot
+        val primaryClient = primaryBotHolder.client
         val primaryBotName = primaryBotHolder.botName
 
-        if (primaryBot == null) {
-            // Primary bot not yet initialized — should not normally happen
-            logger.warn("Primary bot not set in PrimaryBotHolder, cannot send invoice")
+        if (primaryClient == null) {
+            logger.warn("Primary bot client not set in PrimaryBotHolder, cannot send invoice")
             return
         }
 
         // 1. Try to send invoice to the current chat via the primary bot
-        if (sendInvoice(primaryBot, chatId.toString(), replyToMessageId)) return
+        if (sendInvoice(primaryClient, chatId.toString(), replyToMessageId)) return
 
         // 2. Try to send invoice to the user's private chat via the primary bot
-        if (sendInvoice(primaryBot, userId.toString(), null)) return
+        if (sendInvoice(primaryClient, userId.toString(), null)) return
 
         // 3. Fallback: instruct user to top up via the primary bot
-        val link = if (primaryBotName != null) "https://t.me/$primaryBotName" else "the main bot"
         try {
-            val msg = SendMessage()
-            msg.chatId = chatId.toString()
-            msg.replyToMessageId = replyToMessageId
-            msg.text = "У тебя недостаточно звёзд ⭐. " +
-                "Пополни баланс через @$primaryBotName (${COST_PER_MESSAGE} ⭐ за сообщение)."
-            callerBot.execute(msg)
+            val msg = SendMessage.builder()
+                .chatId(chatId.toString())
+                .replyToMessageId(replyToMessageId)
+                .text("У тебя недостаточно звёзд ⭐. " +
+                    "Пополни баланс через @$primaryBotName (${COST_PER_MESSAGE} ⭐ за сообщение).")
+                .build()
+            callerClient.execute(msg)
         } catch (e: TelegramApiException) {
             logger.error("Failed to send fallback message to chatId=$chatId: ${e.message}", e)
         }
     }
 
-    private fun sendInvoice(bot: TelegramLongPollingBot, chatId: String, replyToMessageId: Int?): Boolean {
+    private fun sendInvoice(client: TelegramClient, chatId: String, replyToMessageId: Int?): Boolean {
         return try {
-            val invoice = SendInvoice()
-            invoice.chatId = chatId
-            invoice.title = "Пополнение баланса ⭐"
-            invoice.description = "100 звёзд для общения с ботом (${COST_PER_MESSAGE} ⭐ за сообщение)"
-            invoice.payload = INVOICE_PAYLOAD
-//            invoice.providerToken = ""
-            invoice.currency = "XTR"
-            invoice.prices = listOf(LabeledPrice("100 звёзд", TOP_UP_AMOUNT))
-            if (replyToMessageId != null) invoice.replyToMessageId = replyToMessageId
-            bot.execute(invoice)
+            val builder = SendInvoice.builder()
+                .chatId(chatId)
+                .title("Пополнение баланса ⭐")
+                .description("100 звёзд для общения с ботом (${COST_PER_MESSAGE} ⭐ за сообщение)")
+                .payload(INVOICE_PAYLOAD)
+                .currency("XTR")
+                .prices(listOf(LabeledPrice("100 звёзд", TOP_UP_AMOUNT)))
+            if (replyToMessageId != null) builder.replyToMessageId(replyToMessageId)
+            client.execute(builder.build())
             logger.info("Sent Stars invoice to chatId=$chatId via primary bot")
             true
         } catch (e: TelegramApiException) {

@@ -1,8 +1,8 @@
 package com.mamoru.service
 
 import com.mamoru.service.MessageCacheService.CachedMessage
-import org.telegram.telegrambots.bots.TelegramLongPollingBot
-import org.telegram.telegrambots.meta.api.objects.PhotoSize
+import org.telegram.telegrambots.meta.api.objects.photo.PhotoSize
+import org.telegram.telegrambots.meta.generics.TelegramClient
 
 data class ImpersonationResponse(
     val text: String,
@@ -19,8 +19,7 @@ interface AIService {
         replyText: String? = null,
         from: String? = null,
         replyPhoto: PhotoSize? = null,
-        bot: TelegramLongPollingBot? = null,
-        botToken: String? = null,
+        telegramClient: TelegramClient? = null,
         botUsername: String = "HydraManagerBot"
     ): String
 
@@ -29,8 +28,7 @@ interface AIService {
         replyText: String? = null,
         from: String? = null,
         replyPhoto: PhotoSize? = null,
-        bot: TelegramLongPollingBot? = null,
-        botToken: String? = null,
+        telegramClient: TelegramClient? = null,
         botUsername: String = "HydraManagerBot",
         userid: Long,
         replyChain: List<CachedMessage> = emptyList(),

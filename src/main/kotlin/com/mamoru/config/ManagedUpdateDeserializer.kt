@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.mamoru.service.ManagedBotService
 import org.slf4j.LoggerFactory
-import org.telegram.telegrambots.meta.api.objects.Message
+import org.telegram.telegrambots.meta.api.objects.message.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 
 class ManagedUpdateDeserializer(

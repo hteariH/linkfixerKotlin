@@ -3,7 +3,7 @@ package com.mamoru.service
 import com.mamoru.util.Constants
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Service
-import org.telegram.telegrambots.meta.api.objects.Message
+import org.telegram.telegrambots.meta.api.objects.message.Message
 import org.slf4j.LoggerFactory
 
 @Service

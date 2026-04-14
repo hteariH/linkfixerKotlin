@@ -8,11 +8,10 @@ import com.mamoru.util.Constants
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
-import org.telegram.telegrambots.meta.api.objects.PhotoSize
-import org.telegram.telegrambots.bots.TelegramLongPollingBot
 import org.telegram.telegrambots.meta.api.methods.GetFile
-import java.net.URL
+import org.telegram.telegrambots.meta.generics.TelegramClient
 import org.slf4j.LoggerFactory
+import org.telegram.telegrambots.meta.api.objects.photo.PhotoSize
 
 @Service
 @ConditionalOnProperty(name = ["ai.provider"], havingValue = "gemini", matchIfMissing = true)
@@ -67,14 +66,21 @@ class GeminiAIService(
         return generateWithModels(prompt, Constants.AI.DEFAULT_JOKE_FAILURE_MESSAGE)
     }
 
+    private fun downloadImage(telegramClient: TelegramClient, fileId: String): ByteArray? = try {
+        val tgFile = telegramClient.execute(GetFile.builder().fileId(fileId).build())
+        telegramClient.downloadFile(tgFile).readBytes()
+    } catch (e: Exception) {
+        logger.warn("Could not download image $fileId: ${e.message}")
+        null
+    }
+
     override fun generateMentionResponse(
         messageText: String,
         chatId: Long,
         replyText: String?,
         from: String?,
         replyPhoto: PhotoSize?,
-        bot: TelegramLongPollingBot?,
-        botToken: String?,
+        telegramClient: TelegramClient?,
         botUsername: String
     ): String {
         val picturePrompt = chatSettingsManagementService.getChatSettings(chatId).picturePrompt
@@ -97,17 +103,12 @@ class GeminiAIService(
             Part.fromText("Respond to this message: ${messageText.replace("@$botUsername", "", ignoreCase = true)}")
         )
 
-        if (replyPhoto != null && bot != null && botToken != null) {
-            try {
-                val getFile = GetFile()
-                getFile.fileId = replyPhoto.fileId
-                val file = bot.execute(getFile)
-                val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
-                val imageBytes = URL(fileUrl).readBytes()
+        if (replyPhoto != null && telegramClient != null) {
+            val imageBytes = downloadImage(telegramClient, replyPhoto.fileId)
+            if (imageBytes != null) {
                 contentParts.add(Part.fromText(Constants.AI.PICTURE_ANALYSIS_INSTRUCTION))
                 contentParts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-            } catch (e: Exception) {
-                logger.error("Error downloading photo from replied message: ${e.message}", e)
+            } else {
                 contentParts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I couldn't download it. Please acknowledge this in your response."))
             }
         } else if (replyPhoto != null) {
@@ -123,8 +124,7 @@ class GeminiAIService(
         replyText: String?,
         from: String?,
         replyPhoto: PhotoSize?,
-        bot: TelegramLongPollingBot?,
-        botToken: String?,
+        telegramClient: TelegramClient?,
         botUsername: String,
         userid: Long,
         replyChain: List<CachedMessage>,
@@ -167,15 +167,9 @@ class GeminiAIService(
                     for (msg in recentMessages) {
                         val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
                         parts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
-                        if (msg.photoFileId != null && bot != null && botToken != null) {
-                            try {
-                                val getFile = GetFile().apply { fileId = msg.photoFileId }
-                                val file = bot.execute(getFile)
-                                val imageBytes = URL("https://api.telegram.org/file/bot${botToken}/${file.filePath}").readBytes()
-                                parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-                            } catch (e: Exception) {
-                                logger.warn("Could not download recent context image ${msg.photoFileId}: ${e.message}")
-                            }
+                        if (msg.photoFileId != null && telegramClient != null) {
+                            val imageBytes = downloadImage(telegramClient, msg.photoFileId)
+                            if (imageBytes != null) parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
                         }
                     }
                 }
@@ -185,17 +179,10 @@ class GeminiAIService(
                     for (msg in replyChain) {
                         val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
                         parts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
-                        if (msg.photoFileId != null && bot != null && botToken != null) {
-                            try {
-                                val getFile = GetFile().apply { fileId = msg.photoFileId }
-                                val file = bot.execute(getFile)
-                                val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
-                                val imageBytes = URL(fileUrl).readBytes()
-                                parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-                            } catch (e: Exception) {
-                                logger.warn("Could not download chain image ${msg.photoFileId}: ${e.message}")
-                                parts.add(Part.fromText("[image — could not be loaded]"))
-                            }
+                        if (msg.photoFileId != null && telegramClient != null) {
+                            val imageBytes = downloadImage(telegramClient, msg.photoFileId)
+                            if (imageBytes != null) parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+                            else parts.add(Part.fromText("[image — could not be loaded]"))
                         }
                     }
                 }
@@ -221,16 +208,12 @@ class GeminiAIService(
                     )
                 )
 
-                if (replyPhoto != null && bot != null && botToken != null) {
-                    try {
-                        val getFile = GetFile().apply { fileId = replyPhoto.fileId }
-                        val file = bot.execute(getFile)
-                        val fileUrl = "https://api.telegram.org/file/bot${botToken}/${file.filePath}"
-                        val imageBytes = URL(fileUrl).readBytes()
+                if (replyPhoto != null && telegramClient != null) {
+                    val imageBytes = downloadImage(telegramClient, replyPhoto.fileId)
+                    if (imageBytes != null) {
                         parts.add(Part.fromText("There is an image in the message I'm replying to. Consider it in your response if relevant."))
                         parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-                    } catch (e: Exception) {
-                        logger.error("Error downloading photo from replied message: ${e.message}", e)
+                    } else {
                         parts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I couldn't download it."))
                     }
                 }

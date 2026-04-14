@@ -2,7 +2,7 @@ package com.mamoru.service
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import org.telegram.telegrambots.meta.api.objects.Message
+import org.telegram.telegrambots.meta.api.objects.message.Message
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths

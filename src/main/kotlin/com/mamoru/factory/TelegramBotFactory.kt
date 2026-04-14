@@ -8,7 +8,6 @@ import com.mamoru.service.MessageCacheService
 import com.mamoru.service.MessageProcessorService
 import com.mamoru.service.StarBalanceService
 import org.springframework.stereotype.Component
-import org.telegram.telegrambots.bots.DefaultBotOptions
 
 @Component
 class TelegramBotFactory(
@@ -23,8 +22,7 @@ class TelegramBotFactory(
     fun createBot(
         name: String,
         token: String,
-        targetUserId: Long? = null,
-        botOptions: DefaultBotOptions = DefaultBotOptions()
+        targetUserId: Long? = null
     ): HydraManagerBot {
         return HydraManagerBot(
             botToken = token,
@@ -35,8 +33,7 @@ class TelegramBotFactory(
             messageAnalyzerService = messageAnalyzerService,
             messageCacheService = messageCacheService,
             starBalanceService = starBalanceService,
-            targetUserId = targetUserId,
-            botOptions = botOptions
+            targetUserId = targetUserId
         )
     }
 }

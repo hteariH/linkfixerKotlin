@@ -26,7 +26,7 @@ class ScheduledMessageService(
         for (chat in chatsP) {
             if (chat.sendRandomJoke) {
                 bot.sendMessageToChat(chat.chatId, aiService.getRandomJoke(chat.chatId))
-                logger.info("Sent scheduled message with joke to chat ${chat.chatId} using bot ${bot.getBotUsername()}")
+                logger.info("Sent scheduled message with joke to chat ${chat.chatId} using bot ${bot.botName}")
             }
         }
 

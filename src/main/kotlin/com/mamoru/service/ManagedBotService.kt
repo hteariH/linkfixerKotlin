@@ -15,8 +15,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
-import org.telegram.telegrambots.meta.TelegramBotsApi
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException
+import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication
 import java.util.concurrent.ConcurrentHashMap
 
 data class PendingCreation(val targetUsername: String, val chatId: Long)
@@ -25,7 +24,7 @@ data class PendingCreation(val targetUsername: String, val chatId: Long)
 class ManagedBotService(
     private val managedBotRepository: ManagedBotRepository,
     private val telegramBotFactory: TelegramBotFactory,
-    private val telegramBotsApi: TelegramBotsApi,
+    private val botsApplication: TelegramBotsLongPollingApplication,
     private val botConfig: TelegramBotConfig,
     private val messageAnalyzerService: MessageAnalyzerService,
     private val botRegistryService: BotRegistryService,
@@ -113,11 +112,11 @@ class ManagedBotService(
         val token = fetchManagedBotToken(managedBot.botId)
         val bot = telegramBotFactory.createBot(managedBot.botUsername, token, managedBot.targetUserId)
         try {
-            telegramBotsApi.registerBot(bot)
+            botsApplication.registerBot(token, bot)
             messageAnalyzerService.registerManagedBot(managedBot.botUsername)
             botRegistryService.registerBot(managedBot.botUsername)
             logger.info("Registered managed bot @${managedBot.botUsername} (botId=${managedBot.botId}) for userId ${managedBot.targetUserId}")
-        } catch (e: TelegramApiException) {
+        } catch (e: Exception) {
             logger.error("Failed to register managed bot ${managedBot.botUsername}: ${e.message}", e)
             throw e
         }

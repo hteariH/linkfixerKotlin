@@ -13,11 +13,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.scheduling.annotation.EnableScheduling
-import org.telegram.telegrambots.bots.DefaultBotOptions
-import org.telegram.telegrambots.meta.TelegramBotsApi
-import org.telegram.telegrambots.meta.api.objects.Message
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException
-import org.telegram.telegrambots.updatesreceivers.DefaultBotSession
+import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication
+import org.telegram.telegrambots.meta.api.objects.message.Message
 
 @EnableScheduling
 @EnableConfigurationProperties(TelegramBotConfig::class)
@@ -27,36 +24,24 @@ class HydraManagerBotApplication {
     private val logger = LoggerFactory.getLogger(HydraManagerBotApplication::class.java)
 
     @Bean
-    fun telegramBotsApi(): TelegramBotsApi {
-        return TelegramBotsApi(DefaultBotSession::class.java)
-    }
-
-    @Bean
     fun registerBot(
-        telegramBotsApi: TelegramBotsApi,
+        botsApplication: TelegramBotsLongPollingApplication,
         telegramBotConfig: TelegramBotConfig,
         telegramBotFactory: TelegramBotFactory,
         managedBotService: ManagedBotService,
         primaryBotHolder: PrimaryBotHolder
     ): HydraManagerBot {
-        val options = DefaultBotOptions().apply {
-            allowedUpdates = listOf(
-                "message", "edited_message", "channel_post", "edited_channel_post",
-                "inline_query", "chosen_inline_result", "callback_query",
-                "shipping_query", "pre_checkout_query", "poll", "poll_answer",
-                "my_chat_member", "chat_member", "chat_join_request",
-                "managed_bot"
-            )
-        }
-        val bot = telegramBotFactory.createBot(telegramBotConfig.name, telegramBotConfig.token, botOptions = options)
-        // Register as primary bot so managed bots can delegate invoice sending to it
-        primaryBotHolder.bot = bot
+        val bot = telegramBotFactory.createBot(telegramBotConfig.name, telegramBotConfig.token)
+
+        // Register client and name for managed bots to delegate invoice sending
+        primaryBotHolder.client = bot.telegramClient
         primaryBotHolder.botName = telegramBotConfig.name
+
         try {
-            val session = telegramBotsApi.registerBot(bot)
-            patchSessionMapper(session, managedBotService)
+            botsApplication.registerBot(telegramBotConfig.token, bot)
+            patchBotsApplicationMapper(botsApplication, managedBotService)
             println("Bot ${telegramBotConfig.name} started successfully!")
-        } catch (e: TelegramApiException) {
+        } catch (e: Exception) {
             println("Failed to start bot ${telegramBotConfig.name}: ${e.message}")
             e.printStackTrace()
         }
@@ -65,30 +50,28 @@ class HydraManagerBotApplication {
     }
 
     /**
-     * Patches the ObjectMapper used by DefaultBotSession to intercept managed_bot updates,
-     * which the telegrambots library otherwise silently discards as unknown fields.
+     * Attempts to patch the ObjectMapper inside TelegramBotsLongPollingApplication
+     * to intercept managed_bot updates (non-standard Telegram Bot API field).
+     * If patching fails, managed bots can still be activated manually via /activateBot.
      */
-    private fun patchSessionMapper(session: Any, managedBotService: ManagedBotService) {
+    private fun patchBotsApplicationMapper(botsApplication: TelegramBotsLongPollingApplication, managedBotService: ManagedBotService) {
         try {
-            val targetClass = if (session is DefaultBotSession) session::class.java
-                              else DefaultBotSession::class.java
-
-            val mapperField = generateSequence<Class<*>>(targetClass) { it.superclass }
+            val mapperField = generateSequence<Class<*>>(botsApplication::class.java) { it.superclass }
                 .flatMap { it.declaredFields.asSequence() }
                 .firstOrNull { ObjectMapper::class.java.isAssignableFrom(it.type) }
-                ?: run { logger.warn("Could not find ObjectMapper field in DefaultBotSession — managed_bot auto-activation disabled"); return }
+                ?: run { logger.warn("Could not find ObjectMapper in TelegramBotsLongPollingApplication — managed_bot auto-activation disabled"); return }
 
             mapperField.isAccessible = true
             val mapper = (if (java.lang.reflect.Modifier.isStatic(mapperField.modifiers))
-                mapperField.get(null) else mapperField.get(session)) as? ObjectMapper
+                mapperField.get(null) else mapperField.get(botsApplication)) as? ObjectMapper
                 ?: run { logger.warn("ObjectMapper field is null — managed_bot auto-activation disabled"); return }
 
             mapper.registerModule(
                 SimpleModule().addDeserializer(Message::class.java, ManagedUpdateDeserializer(managedBotService))
             )
-            logger.info("Successfully patched DefaultBotSession ObjectMapper for managed_bot support")
+            logger.info("Successfully patched TelegramBotsLongPollingApplication ObjectMapper for managed_bot support")
         } catch (e: Exception) {
-            logger.warn("Could not patch DefaultBotSession ObjectMapper: ${e.message} — managed_bot auto-activation disabled")
+            logger.warn("Could not patch ObjectMapper: ${e.message} — use /activateBot for manual bot activation")
         }
     }
 }

@@ -2,17 +2,17 @@ package com.mamoru
 
 import com.mamoru.service.*
 import org.slf4j.LoggerFactory
-import org.telegram.telegrambots.bots.DefaultBotOptions
-import org.telegram.telegrambots.bots.TelegramLongPollingBot
+import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient
+import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer
 import org.telegram.telegrambots.meta.api.methods.AnswerPreCheckoutQuery
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
-import org.telegram.telegrambots.meta.api.objects.Message
+import org.telegram.telegrambots.meta.api.objects.message.Message
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 
 open class HydraManagerBot(
     private val botToken: String,
-    private val botName: String,
+    val botName: String,
     private val commandHandlerService: CommandHandlerService,
     private val messageProcessorService: MessageProcessorService,
     private val chatSettingsManagementService: ChatSettingsManagementService,
@@ -20,15 +20,13 @@ open class HydraManagerBot(
     private val messageCacheService: MessageCacheService,
     private val starBalanceService: StarBalanceService,
     // Non-null for managed bots: always impersonates this user when mentioned
-    private val targetUserId: Long? = null,
-    botOptions: DefaultBotOptions = DefaultBotOptions()
-) : TelegramLongPollingBot(botOptions, botToken) {
+    private val targetUserId: Long? = null
+) : LongPollingSingleThreadUpdateConsumer {
 
     private val logger = LoggerFactory.getLogger(HydraManagerBot::class.java)
+    val telegramClient = OkHttpTelegramClient(botToken)
 
-    override fun getBotUsername(): String = botName
-
-    override fun onUpdateReceived(update: Update) {
+    override fun consume(update: Update) {
         logger.debug("Received update: {}", update)
 
         // Handle payment pre-checkout: must be approved before message arrives
@@ -83,10 +81,8 @@ open class HydraManagerBot(
     private fun handlePreCheckoutQuery(update: Update) {
         val query = update.preCheckoutQuery
         try {
-            val answer = AnswerPreCheckoutQuery()
-            answer.preCheckoutQueryId = query.id
-            answer.ok = true
-            execute(answer)
+            val answer = AnswerPreCheckoutQuery(query.id, true)
+            telegramClient.execute(answer)
             logger.info("Approved pre-checkout query id=${query.id} from userId=${query.from.id}")
         } catch (e: TelegramApiException) {
             logger.error("Failed to answer pre-checkout query: ${e.message}", e)
@@ -136,7 +132,7 @@ open class HydraManagerBot(
                     "У тебя недостаточно звёзд ⭐ (баланс: $balance). " +
                     "Пополни баланс, чтобы продолжить (${StarBalanceService.COST_PER_MESSAGE} ⭐ за сообщение)."
                 )
-                starBalanceService.sendStarInvoice(this, message.chatId, userId, message.messageId)
+                starBalanceService.sendStarInvoice(telegramClient, message.chatId, userId, message.messageId)
                 return
             }
         }
@@ -156,7 +152,8 @@ open class HydraManagerBot(
         }
 
         val result = messageProcessorService.processTextMessage(
-            message, this, botToken, botName, targetUserId, replyChain, recentMessages
+            message, botName, targetUserId, replyChain, recentMessages,
+            telegramClient
         )
 
         val settings = chatSettingsManagementService.getChatSettings(message.chatId)
@@ -166,12 +163,13 @@ open class HydraManagerBot(
             result.mentionResponse?.let { responseText ->
                 val parts = splitAndTruncate(responseText)
                 parts.forEachIndexed { index, part ->
-                    val sendMessage = SendMessage()
-                    sendMessage.chatId = message.chatId.toString()
-                    sendMessage.text = part
-                    if (index == 0) sendMessage.replyToMessageId = message.messageId
+                    val builder = SendMessage.builder()
+                        .chatId(message.chatId.toString())
+                        .text(part)
+                    if (index == 0) builder.replyToMessageId(message.messageId)
+                    val sendMessage = builder.build()
                     try {
-                        val sent = execute(sendMessage)
+                        val sent = telegramClient.execute(sendMessage)
                         if (isManaged) {
                             messageCacheService.cacheSentMessage(
                                 chatId = message.chatId, messageId = sent.messageId, text = part,
@@ -215,11 +213,12 @@ open class HydraManagerBot(
         val parts = splitAndTruncate(text)
         if (parts.isEmpty()) return
         for (part in parts) {
-            val message = SendMessage()
-            message.chatId = chatId.toString()
-            message.text = part
+            val message = SendMessage.builder()
+                .chatId(chatId.toString())
+                .text(part)
+                .build()
             try {
-                val sent = execute(message)
+                val sent = telegramClient.execute(message)
                 logger.info("Sent message ${sent.messageId} to chat $chatId")
             } catch (e: Exception) {
                 logger.error("Failed to send message to chat $chatId: ${e.message}", e)
