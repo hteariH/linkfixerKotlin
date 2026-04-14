@@ -6,6 +6,7 @@ import com.mamoru.service.CommandHandlerService
 import com.mamoru.service.MessageAnalyzerService
 import com.mamoru.service.MessageCacheService
 import com.mamoru.service.MessageProcessorService
+import com.mamoru.service.StarBalanceService
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.bots.DefaultBotOptions
 
@@ -15,7 +16,8 @@ class TelegramBotFactory(
     private val messageProcessorService: MessageProcessorService,
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val messageAnalyzerService: MessageAnalyzerService,
-    private val messageCacheService: MessageCacheService
+    private val messageCacheService: MessageCacheService,
+    private val starBalanceService: StarBalanceService
 ) {
 
     fun createBot(
@@ -32,6 +34,7 @@ class TelegramBotFactory(
             chatSettingsManagementService = chatSettingsManagementService,
             messageAnalyzerService = messageAnalyzerService,
             messageCacheService = messageCacheService,
+            starBalanceService = starBalanceService,
             targetUserId = targetUserId,
             botOptions = botOptions
         )
