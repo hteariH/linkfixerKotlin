@@ -29,7 +29,7 @@ object Constants {
         const val DEFAULT_MODEL = "gemini-2.5-flash"
         const val BACKUP_MODEL = "gemini-2.5-flash-lite"
         val MODEL_CANDIDATES =
-            listOf(DEFAULT_MODEL, "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", BACKUP_MODEL)
+            listOf("gemini-3-flash-preview",DEFAULT_MODEL, "gemini-3.1-flash-lite-preview", BACKUP_MODEL)
 
         val GROQ_MODEL_CANDIDATES = listOf(
             "groq/compound",
