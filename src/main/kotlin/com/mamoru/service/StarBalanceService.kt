@@ -19,13 +19,13 @@ class StarBalanceService(
     private val logger = LoggerFactory.getLogger(StarBalanceService::class.java)
 
     companion object {
-        const val COST_PER_MESSAGE = 5
+        const val COST_PER_MESSAGE = 3
 
         /** callback_data suffix → amount in stars */
         val TOP_UP_OPTIONS = linkedMapOf(
-            "topup:5" to 5,
-            "topup:50" to 50,
-            "topup:500" to 500
+            "topup:6" to 6,
+            "topup:60" to 60,
+            "topup:600" to 600
         )
 
         /** Telegram invoice payload for a given callback key */
