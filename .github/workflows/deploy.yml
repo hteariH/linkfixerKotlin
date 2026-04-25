@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [ ManagerBot ]
+    branches: [ ManagerBot, ManagerBot_v4 ]
 
 env:
   REGISTRY: ghcr.io
