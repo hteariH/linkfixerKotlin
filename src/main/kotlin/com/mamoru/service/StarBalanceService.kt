@@ -23,9 +23,9 @@ class StarBalanceService(
 
         /** callback_data suffix → amount in stars */
         val TOP_UP_OPTIONS = linkedMapOf(
-            "topup:6" to 6,
-            "topup:60" to 60,
-            "topup:600" to 600
+            "topup:45" to 45,
+            "topup:150" to 150,
+            "topup:450" to 450
         )
 
         /** Telegram invoice payload for a given callback key */
