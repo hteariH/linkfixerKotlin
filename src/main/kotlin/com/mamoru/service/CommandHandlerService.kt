@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory
 class CommandHandlerService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val aiService: AIService,
+    private val starBalanceService: StarBalanceService,
+    private val primaryBotHolder: PrimaryBotHolder,
     @Lazy private val managedBotService: ManagedBotService
 ) {
     private val logger = LoggerFactory.getLogger(CommandHandlerService::class.java)
@@ -26,8 +28,34 @@ class CommandHandlerService(
             text.startsWith(Constants.Command.SET_PICTURE_PROMPT, ignoreCase = true) -> handleSetPicturePrompt(chatId, text)
             text.startsWith(Constants.Command.CREATE_BOT, ignoreCase = true) -> handleCreateBot(text, message.chatId)
             text.startsWith(Constants.Command.ACTIVATE_BOT, ignoreCase = true) -> handleActivateBot(text)
+            text.startsWith(Constants.Command.SEND_INVOICE, ignoreCase = true) -> handleSendInvoice(message)
             else -> CommandResult(isCommand = false)
         }
+    }
+
+    private fun handleSendInvoice(message: Message): CommandResult {
+        val userId = message.from?.id ?: return CommandResult(isCommand = true, responseText = "Could not identify user.")
+        val balance = starBalanceService.getBalance(userId)
+        
+        val client = primaryBotHolder.client
+        if (client == null) {
+            return CommandResult(
+                isCommand = true,
+                responseText = "Ваш текущий баланс: $balance ⭐\n(Сервис пополнения временно недоступен)"
+            )
+        }
+
+        starBalanceService.sendStarInvoice(
+            client, 
+            message.chatId, 
+            userId, 
+            message.messageId
+        )
+        
+        return CommandResult(
+            isCommand = true, 
+            responseText = "Ваш текущий баланс: $balance ⭐"
+        )
     }
 
     private fun handleToggleJoke(chatId: Long): CommandResult {

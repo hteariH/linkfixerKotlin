@@ -10,6 +10,7 @@ object Constants {
         const val SET_PICTURE_PROMPT = "/setPicturePrompt"
         const val CREATE_BOT = "/createBot"
         const val ACTIVATE_BOT = "/activateBot"
+        const val SEND_INVOICE = "/sendInvoice"
     }
 
     object Message {
