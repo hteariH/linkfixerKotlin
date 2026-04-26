@@ -58,18 +58,23 @@ class HydraManagerBotApplication {
         try {
             val mapperField = generateSequence<Class<*>>(botsApplication::class.java) { it.superclass }
                 .flatMap { it.declaredFields.asSequence() }
-                .firstOrNull { ObjectMapper::class.java.isAssignableFrom(it.type) }
+                .firstOrNull { it.type.name.endsWith(".ObjectMapper") }
                 ?: run { logger.warn("Could not find ObjectMapper in TelegramBotsLongPollingApplication — managed_bot auto-activation disabled"); return }
 
             mapperField.isAccessible = true
             val mapper = (if (java.lang.reflect.Modifier.isStatic(mapperField.modifiers))
-                mapperField.get(null) else mapperField.get(botsApplication)) as? ObjectMapper
+                mapperField.get(null) else mapperField.get(botsApplication))
                 ?: run { logger.warn("ObjectMapper field is null — managed_bot auto-activation disabled"); return }
 
-            mapper.registerModule(
-                SimpleModule().addDeserializer(Message::class.java, ManagedUpdateDeserializer(managedBotService))
-            )
-            logger.info("Successfully patched TelegramBotsLongPollingApplication ObjectMapper for managed_bot support")
+            // Use reflection to register the module to handle both Jackson 2 and Jackson 3 types if necessary
+            // In our case, we know it's Jackson 2 because we forced it in build.gradle.kts
+            val registerModuleMethod = mapper::class.java.methods.firstOrNull { it.name == "registerModule" }
+            if (registerModuleMethod != null) {
+                registerModuleMethod.invoke(mapper, SimpleModule().addDeserializer(Message::class.java, ManagedUpdateDeserializer(managedBotService)))
+                logger.info("Successfully patched TelegramBotsLongPollingApplication ObjectMapper for managed_bot support")
+            } else {
+                logger.warn("Could not find registerModule method on ObjectMapper — managed_bot auto-activation disabled")
+            }
         } catch (e: Exception) {
             logger.warn("Could not patch ObjectMapper: ${e.message} — use /activateBot for manual bot activation")
         }

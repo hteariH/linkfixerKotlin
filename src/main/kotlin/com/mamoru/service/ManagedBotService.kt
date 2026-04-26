@@ -97,14 +97,18 @@ class ManagedBotService(
     @Order(2)
     fun registerAllFromDb() {
         botRegistryService.registerBot(botConfig.name) // Register main bot
-        val bots = managedBotRepository.findAll()
-        logger.info("Registering ${bots.size} managed bot(s) from database")
-        for (bot in bots) {
-            try {
-                registerBotInstance(bot)
-            } catch (e: Exception) {
-                logger.error("Failed to register managed bot ${bot.botUsername}: ${e.message}", e)
+        try {
+            val bots = managedBotRepository.findAll()
+            logger.info("Registering ${bots.size} managed bot(s) from database")
+            for (bot in bots) {
+                try {
+                    registerBotInstance(bot)
+                } catch (e: Exception) {
+                    logger.error("Failed to register managed bot ${bot.botUsername}: ${e.message}", e)
+                }
             }
+        } catch (e: Exception) {
+            logger.error("Could not fetch managed bots from database: ${e.message}. Bot will continue without managed instances.")
         }
     }
 

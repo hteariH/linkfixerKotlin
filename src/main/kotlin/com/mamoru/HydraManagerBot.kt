@@ -15,7 +15,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException
 
 open class HydraManagerBot(
     private val botToken: String,
-    val botName: String,
+    open val botName: String,
     private val commandHandlerService: CommandHandlerService,
     private val messageProcessorService: MessageProcessorService,
     private val chatSettingsManagementService: ChatSettingsManagementService,
@@ -27,7 +27,7 @@ open class HydraManagerBot(
 ) : LongPollingSingleThreadUpdateConsumer {
 
     private val logger = LoggerFactory.getLogger(HydraManagerBot::class.java)
-    val telegramClient = OkHttpTelegramClient(botToken)
+    open val telegramClient = OkHttpTelegramClient(botToken)
 
     override fun consume(update: Update) {
         logger.debug("Received update: {}", update)
@@ -251,7 +251,7 @@ open class HydraManagerBot(
             .map { part -> if (part.length > telegramMaxLen) part.substring(0, telegramMaxLen) else part }
     }
 
-    fun sendMessageToChat(chatId: Long, text: String) {
+    open fun sendMessageToChat(chatId: Long, text: String) {
         val parts = splitAndTruncate(text)
         if (parts.isEmpty()) return
         for (part in parts) {

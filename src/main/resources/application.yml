@@ -7,7 +7,7 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/hydramanagerbot}
+      uri: ${MONGODB_URI:mongodb://mongodb:27017/hydramanagerbot}
 
 logging:
   file:
