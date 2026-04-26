@@ -10,6 +10,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.annotation.Lazy
 import org.springframework.context.event.EventListener
 import org.springframework.core.annotation.Order
+import org.springframework.core.env.Environment
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -28,7 +29,8 @@ class ManagedBotService(
     private val botConfig: TelegramBotConfig,
     private val messageAnalyzerService: MessageAnalyzerService,
     private val botRegistryService: BotRegistryService,
-    @Lazy private val mainBot: HydraManagerBot
+    @Lazy private val mainBot: HydraManagerBot,
+    private val environment: Environment
 ) {
     private val logger = LoggerFactory.getLogger(ManagedBotService::class.java)
     private val restTemplate = RestTemplate()
@@ -96,6 +98,9 @@ class ManagedBotService(
     @EventListener(ApplicationReadyEvent::class)
     @Order(2)
     fun registerAllFromDb() {
+        val mongoUri = environment.getProperty("spring.data.mongodb.uri")
+        logger.info("Starting bot registration. Resolved spring.data.mongodb.uri: $mongoUri")
+        
         botRegistryService.registerBot(botConfig.name) // Register main bot
         try {
             val bots = managedBotRepository.findAll()

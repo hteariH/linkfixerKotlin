@@ -8,6 +8,8 @@ spring:
       password: ${REDIS_PASSWORD:}
     mongodb:
       uri: ${MONGODB_URI:mongodb://mongodb:27017/hydramanagerbot}
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://mongodb:27017/hydramanagerbot}
 
 logging:
   file:
