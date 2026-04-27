@@ -13,12 +13,9 @@ class DownloadCleanupService : CommandLineRunner {
     @Value("\${tiktok.download.path:./videos}")
     private lateinit var tiktokDownloadPath: String
 
-    @Value("\${instagram.download.path:./videos}")
-    private lateinit var instagramDownloadPath: String
-
     override fun run(vararg args: String?) {
         try {
-            val pathsToClean = setOf(tiktokDownloadPath, instagramDownloadPath)
+            val pathsToClean = setOf(tiktokDownloadPath)
             
             pathsToClean.forEach { path ->
                 cleanPath(path)

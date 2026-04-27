@@ -170,21 +170,6 @@ class LinkFixerBot(
                     }
                 }
 
-                Constants.UrlType.INSTAGRAM -> {
-                    val sendVideo = mediaHandlerService.handleInstagramUrl(message, processedUrl.original)
-                    if (sendVideo != null) {
-                        try {
-                            execute(sendVideo)
-                            logger.info("Sent Instagram video to chat: ${message.chatId}")
-                        } catch (e: TelegramApiException) {
-                            logger.error("Failed to send Instagram video: ${e.message}", e)
-                            sendMessageToChat(message.chatId, processedUrl.converted)
-                        }
-                    } else {
-                        sendMessageToChat(message.chatId, processedUrl.converted)
-                    }
-                }
-
                 Constants.UrlType.TWITTER -> {
                     if (processedUrl.original != processedUrl.converted) {
                         sendMessageToChat(message.chatId, processedUrl.converted)

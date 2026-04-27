@@ -26,7 +26,7 @@ This document describes the key services and components (agents) that make up th
 - **File**: `src/main/kotlin/com/mamoru/service/MediaHandlerService.kt`
 - **Role**: Manages the downloading and processing of rich media.
 - **Responsibilities**:
-    - Handling TikTok and Instagram URLs by downloading videos via specialized downloader services.
+    - Handling TikTok URLs by downloading videos via the TikTok downloader service.
     - Caching downloaded videos to avoid redundant processing.
     - Transcribing voice messages using AI.
 
@@ -41,9 +41,9 @@ This document describes the key services and components (agents) that make up th
 
 ## Support Services
 
-### 5. **TikTokDownloaderService & InstagramDownloaderService**
-- **Files**: `src/main/kotlin/com/mamoru/service/TikTokDownloaderService.kt`, `src/main/kotlin/com/mamoru/service/InstagramDownloaderService.kt`
-- **Role**: Low-level downloaders powered by `yt-dlp`.
+### 5. **TikTokDownloaderService**
+- **File**: `src/main/kotlin/com/mamoru/service/TikTokDownloaderService.kt`
+- **Role**: Low-level downloader powered by `yt-dlp`.
 - **Responsibilities**:
     - Extracting video IDs from social media URLs.
     - Executing `yt-dlp` commands to download video and audio streams.
@@ -73,8 +73,7 @@ This document describes the key services and components (agents) that make up th
 - **File**: `src/main/kotlin/com/mamoru/service/DownloadCleanupService.kt`
 - **Role**: Startup maintenance utility implementing `CommandLineRunner`.
 - **Responsibilities**:
-    - Cleaning the download directory upon application startup to ensure a fresh state.
-    - Handles both TikTok and Instagram download paths, deduplicating if they share the same directory.
+    - Cleaning the TikTok download directory upon application startup to ensure a fresh state.
 
 ## Configuration & Management
 

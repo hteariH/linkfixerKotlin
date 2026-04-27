@@ -21,8 +21,7 @@ class MediaHandlerService(
     private val geminiAIService: GeminiAIService,
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val videoCacheService: VideoCacheService,
-    private val tikTokDownloaderService: TikTokDownloaderService,
-    private val instagramDownloaderService: InstagramDownloaderService
+    private val tikTokDownloaderService: TikTokDownloaderService
 ) {
     private val logger = LoggerFactory.getLogger(MediaHandlerService::class.java)
 
@@ -56,40 +55,6 @@ class MediaHandlerService(
             return null
         } catch (e: Exception) {
             logger.error("Failed to process TikTok video: ${e.message}", e)
-            return null
-        }
-    }
-
-    /**
-     * Handle an Instagram URL by downloading and sending the video
-     *
-     * @param message The Telegram message containing the Instagram URL
-     * @param url The Instagram URL to process
-     * @return The SendVideo object or null if processing failed
-     */
-    fun handleInstagramUrl(message: Message, url: String): SendVideo? {
-        try {
-            // Check if video is already in cache
-            val cachedVideo = videoCacheService.getCachedVideo(url)
-            if (cachedVideo != null) {
-                logger.info("Using cached Instagram video for URL: $url")
-                return createSendVideoObject(message, cachedVideo)
-            }
-
-            // Download video if not cached
-            logger.info("Downloading Instagram video from URL: $url")
-            val downloadedFile = instagramDownloaderService.downloadVideo(url)
-            if (downloadedFile != null) {
-                // Cache the video for future use
-                videoCacheService.cacheVideo(url, downloadedFile)
-                logger.info("Downloaded and cached Instagram video for URL: $url")
-                return createSendVideoObject(message, downloadedFile)
-            }
-
-            logger.warn("Failed to download Instagram video from URL: $url")
-            return null
-        } catch (e: Exception) {
-            logger.error("Failed to process Instagram video: ${e.message}", e)
             return null
         }
     }

@@ -16,7 +16,6 @@ object Constants {
      */
     object UrlType {
         const val TIKTOK = "tiktok"
-        const val INSTAGRAM = "instagram"
         const val TWITTER = "twitter"
     }
 
