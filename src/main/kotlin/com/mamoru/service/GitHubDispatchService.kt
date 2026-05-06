@@ -30,37 +30,42 @@ class GitHubDispatchService(
             return "❌ GitHub dispatch не налаштований: перевірте змінні GITHUB_PAT, GITHUB_OWNER, GITHUB_REPO."
         }
 
-        val url = "https://api.github.com/repos/$owner/$repo/dispatches"
+        // Переходим на workflow_dispatch для лучшей совместимости с OpenCode
+        val workflowId = "opencode-bot.yml"
+        val url = "https://api.github.com/repos/$owner/$repo/actions/workflows/$workflowId/dispatches"
+        
         val headers = HttpHeaders().apply {
             setBearerAuth(pat)
-            accept = listOf(MediaType.parseMediaType("application/vnd.github+json"))
+            set("Accept", "application/vnd.github+json")
             contentType = MediaType.APPLICATION_JSON
             set("X-GitHub-Api-Version", "2022-11-28")
         }
+        
         val body = mapOf(
-            "event_type" to "telegram_cmd",
-            "client_payload" to mapOf("message" to instruction)
+            "ref" to "ManagerBot_oc", // Ветка, на которой запускать. В идеале брать из конфига.
+            "inputs" to mapOf("message" to instruction)
         )
         val entity = HttpEntity(body, headers)
-        logger.info("Sending GitHub dispatch for instruction: $instruction, url: $url, headers: $headers, body: $body")
+
         return try {
+            logger.info("Sending GitHub workflow_dispatch to: $url")
             val response = restTemplate.postForEntity(url, entity, String::class.java)
             if (response.statusCode == HttpStatus.NO_CONTENT || response.statusCode.is2xxSuccessful) {
-                logger.info("GitHub dispatch sent successfully for instruction: $instruction")
+                logger.info("GitHub workflow_dispatch sent successfully for instruction: $instruction")
                 null
             } else {
-                logger.warn("GitHub dispatch returned unexpected status: ${response.statusCode}")
-                "⚠️ GitHub повернув несподіваний статус: ${response.statusCode}"
+                logger.warn("GitHub dispatch returned unexpected status: ${response.statusCode}. Body: ${response.body}")
+                "⚠️ GitHub вернул статус ${response.statusCode}: ${response.body}"
             }
         } catch (e: HttpClientErrorException) {
             logger.error("GitHub dispatch client error: ${e.statusCode} ${e.responseBodyAsString}")
-            "❌ Помилка GitHub API (${e.statusCode}): ${e.responseBodyAsString}"
+            "❌ Ошибка GitHub API (${e.statusCode}): ${e.responseBodyAsString}"
         } catch (e: HttpServerErrorException) {
             logger.error("GitHub dispatch server error: ${e.statusCode} ${e.responseBodyAsString}")
-            "❌ Помилка сервера GitHub (${e.statusCode}): спробуйте пізніше."
+            "❌ Ошибка сервера GitHub (${e.statusCode}): попробуйте позже."
         } catch (e: Exception) {
             logger.error("GitHub dispatch unexpected error", e)
-            "❌ Не вдалося надіслати команду до GitHub: ${e.message}"
+            "❌ Не удалось отправить команду в GitHub: ${e.message}"
         }
     }
 }

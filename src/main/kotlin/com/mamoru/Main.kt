@@ -18,7 +18,7 @@ import org.telegram.telegrambots.meta.api.objects.message.Message
 
 @EnableScheduling
 @EnableConfigurationProperties(TelegramBotConfig::class)
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = ["com.mamoru"])
 class HydraManagerBotApplication {
 
     private val logger = LoggerFactory.getLogger(HydraManagerBotApplication::class.java)
