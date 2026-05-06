@@ -34,6 +34,6 @@ jobs:
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.PAID_GOOGLE_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          model: google/gemini-2.5-pro
+          model: google/gemini-3.1-pro-preview
           share: true
           prompt: ${{ github.event.inputs.message }}

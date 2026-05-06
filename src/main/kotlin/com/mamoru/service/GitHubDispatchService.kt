@@ -43,10 +43,15 @@ class GitHubDispatchService(
         }
         
         val fullInstruction = """
-            $instruction
+            User Instruction: $instruction
             
-            IMPORTANT: Implement the requested changes, verify them by building the project, and then SUBMIT. 
-            DO NOT REVERT any changes after a successful build. Your goal is to provide a working implementation in a Pull Request.
+            Strict Operational Protocol:
+            1. Analyze and implement the changes.
+            2. Run `./gradlew build` once to verify.
+            3. Upon success, immediately call the `submit` tool and terminate.
+            4. CATEGORICALLY FORBIDDEN: redundant Gradle tasks (clean, assemble, check, etc.), manual git commands (unless necessary for PR), or system exploration (ls, pwd, df, top, etc.) after implementation is verified.
+            5. DO NOT REVERT ANY CHANGES.
+            6. FAILURE TO SUBMIT IMMEDIATELY AFTER VERIFICATION IS A VIOLATION OF PROTOCOL.
         """.trimIndent()
 
         val body = mapOf(
