@@ -37,3 +37,7 @@ ai:
 groq:
   api-key: ${GROQ_API_KEY:}
   base-url: https://api.groq.com/openai
+github:
+  pat: ${GITHUB_PAT:}
+  owner: ${GITHUB_OWNER:}
+  repo: ${GITHUB_REPO:}

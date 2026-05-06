@@ -12,9 +12,14 @@ class CommandHandlerService(
     private val aiService: AIService,
     private val starBalanceService: StarBalanceService,
     private val primaryBotHolder: PrimaryBotHolder,
+    private val gitHubDispatchService: GitHubDispatchService,
     @Lazy private val managedBotService: ManagedBotService
 ) {
     private val logger = LoggerFactory.getLogger(CommandHandlerService::class.java)
+
+    companion object {
+        const val AGENT_COST = 10
+    }
 
     fun handleCommand(message: Message): CommandResult {
         val chatId = message.chatId
@@ -29,6 +34,7 @@ class CommandHandlerService(
             text.startsWith(Constants.Command.CREATE_BOT, ignoreCase = true) -> handleCreateBot(text, message.chatId)
             text.startsWith(Constants.Command.ACTIVATE_BOT, ignoreCase = true) -> handleActivateBot(text)
             text.startsWith(Constants.Command.SEND_INVOICE, ignoreCase = true) -> handleSendInvoice(message)
+            text.startsWith(Constants.Command.AGENT, ignoreCase = true) -> handleAgent(text, message.from?.id)
             else -> CommandResult(isCommand = false)
         }
     }
@@ -101,6 +107,23 @@ class CommandHandlerService(
             CommandResult(isCommand = true, responseText = Constants.Message.PICTURE_PROMPT_UPDATED)
         } else {
             CommandResult(isCommand = true, responseText = Constants.Message.PICTURE_PROMPT_HELP)
+        }
+    }
+
+    private fun handleAgent(text: String, userId: Long?): CommandResult {
+        val instruction = text.substringAfter(Constants.Command.AGENT).trim()
+        if (instruction.isEmpty()) {
+            return CommandResult(isCommand = true, responseText = Constants.Message.AGENT_USAGE)
+        }
+        if (userId == null || starBalanceService.getBalance(userId) < AGENT_COST) {
+            return CommandResult(isCommand = true, responseText = Constants.Message.AGENT_NO_BALANCE)
+        }
+        val error = gitHubDispatchService.dispatch(instruction)
+        return if (error == null) {
+            starBalanceService.deductStars(userId, AGENT_COST)
+            CommandResult(isCommand = true, responseText = Constants.Message.AGENT_DISPATCHED)
+        } else {
+            CommandResult(isCommand = true, responseText = error)
         }
     }
 
