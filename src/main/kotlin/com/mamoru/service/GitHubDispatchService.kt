@@ -42,7 +42,7 @@ class GitHubDispatchService(
             "client_payload" to mapOf("message" to instruction)
         )
         val entity = HttpEntity(body, headers)
-
+        logger.info("Sending GitHub dispatch for instruction: $instruction, url: $url, headers: $headers, body: $body")
         return try {
             val response = restTemplate.postForEntity(url, entity, String::class.java)
             if (response.statusCode == HttpStatus.NO_CONTENT || response.statusCode.is2xxSuccessful) {
