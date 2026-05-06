@@ -19,6 +19,7 @@ services:
       - PAT=${PAT}
       - GITHUB_REPO=${GITHUB_REPO}
       - GITHUB_OWNER=${GITHUB_OWNER}
+      - GITHUB_REF=${GITHUB_REF:ManagerBot_oc}
     volumes:
       - ./data:/data
     restart: always

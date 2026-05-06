@@ -41,3 +41,4 @@ github:
   pat: ${PAT:}
   owner: ${GITHUB_OWNER:}
   repo: ${GITHUB_REPO:}
+  ref: ${GITHUB_REF:ManagerBot_oc}

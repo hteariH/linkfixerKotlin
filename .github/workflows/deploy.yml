@@ -62,6 +62,7 @@ jobs:
           echo "PAT=${{ secrets.PAT }}" >> .env
           echo "GITHUB_REPO=linkfixerKotlin" >> .env
           echo "GITHUB_OWNER=hteariH" >> .env
+          echo "GITHUB_REF=ManagerBot_oc" >> .env
 
       - name: Prepare remote directory
         uses: appleboy/ssh-action@v1.0.3

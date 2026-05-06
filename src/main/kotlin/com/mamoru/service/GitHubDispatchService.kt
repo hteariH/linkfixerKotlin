@@ -16,7 +16,8 @@ class GitHubDispatchService(
     private val restTemplate: RestTemplate,
     @Value("\${github.pat:}") private val pat: String,
     @Value("\${github.owner:}") private val owner: String,
-    @Value("\${github.repo:}") private val repo: String
+    @Value("\${github.repo:}") private val repo: String,
+    @Value("\${github.ref:ManagerBot_oc}") private val ref: String
 ) {
     private val logger = LoggerFactory.getLogger(GitHubDispatchService::class.java)
 
@@ -41,9 +42,19 @@ class GitHubDispatchService(
             set("X-GitHub-Api-Version", "2022-11-28")
         }
         
+        val fullInstruction = """
+            $instruction
+            
+            IMPORTANT: Implement the requested changes, verify them by building the project, and then SUBMIT. 
+            DO NOT REVERT any changes after a successful build. Your goal is to provide a working implementation in a Pull Request.
+        """.trimIndent()
+
         val body = mapOf(
-            "ref" to "ManagerBot_oc", // Ветка, на которой запускать. В идеале брать из конфига.
-            "inputs" to mapOf("message" to instruction)
+            "ref" to ref, // Ветка, на которой запускать
+            "inputs" to mapOf(
+                "message" to fullInstruction,
+                "ref" to ref
+            )
         )
         val entity = HttpEntity(body, headers)
 
