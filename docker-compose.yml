@@ -16,6 +16,9 @@ services:
       - GOOGLE_API_KEY=${PAID_GOOGLE_API_KEY}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - AI_PROVIDER=gemini
+      - PAT=${PAT}
+      - GITHUB_REPO=${GITHUB_REPO}
+      - GITHUB_OWNER=${GITHUB_OWNER}
     volumes:
       - ./data:/data
     restart: always

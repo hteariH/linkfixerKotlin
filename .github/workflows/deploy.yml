@@ -59,7 +59,7 @@ jobs:
           echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
           echo "AI_PROVIDER=gemini" >> .env
           echo "HYDRA_BOT_TOKEN=${{ secrets.HYDRA_BOT_TOKEN }}" >> .env
-          echo "GITHUB_PAT=${{ secrets.GITHUB_PAT }}" >> .env
+          echo "PAT=${{ secrets.PAT }}" >> .env
           echo "GITHUB_REPO=linkfixerKotlin" >> .env
           echo "GITHUB_OWNER=hteariH" >> .env
 
