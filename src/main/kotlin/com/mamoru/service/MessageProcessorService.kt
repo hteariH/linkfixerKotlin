@@ -77,7 +77,7 @@ class MessageProcessorService(
         if (isMentioned && (isManaged || settings.commentOnPictures)) {
             val replyToMessage = message.replyToMessage
             val from = replyToMessage?.from?.userName
-            val replyText = replyToMessage?.text
+            val replyText = replyToMessage?.text ?: replyToMessage?.caption
             val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
             val cleanText = text.replace("@$botUsername", "", ignoreCase = true).trim()
 
