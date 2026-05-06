@@ -38,7 +38,7 @@ class MessageCacheService {
         }
         chatMessages[message.messageId] = CachedMessage(
             messageId = message.messageId,
-            text = message.text,
+            text = message.text ?: message.caption,
             fromUsername = message.from?.userName,
             fromFirstName = message.from?.firstName,
             replyToMessageId = message.replyToMessage?.messageId,
