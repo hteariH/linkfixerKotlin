@@ -51,7 +51,8 @@ class GitHubDispatchService(
             3. Upon success, immediately call the `submit` tool and terminate.
             4. CATEGORICALLY FORBIDDEN: redundant Gradle tasks (clean, assemble, check, etc.), manual git commands (unless necessary for PR), or system exploration (ls, pwd, df, top, etc.) after implementation is verified.
             5. DO NOT REVERT ANY CHANGES.
-            6. FAILURE TO SUBMIT IMMEDIATELY AFTER VERIFICATION IS A VIOLATION OF PROTOCOL.
+            6. MAXIMUM STEPS: 100. You must reach a conclusion and call `submit` within 100 steps.
+            7. FAILURE TO SUBMIT IMMEDIATELY AFTER VERIFICATION IS A VIOLATION OF PROTOCOL.
         """.trimIndent()
 
         val body = mapOf(
