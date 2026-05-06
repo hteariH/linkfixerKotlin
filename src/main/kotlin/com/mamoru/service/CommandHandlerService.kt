@@ -35,6 +35,7 @@ class CommandHandlerService(
             text.startsWith(Constants.Command.ACTIVATE_BOT, ignoreCase = true) -> handleActivateBot(text)
             text.startsWith(Constants.Command.SEND_INVOICE, ignoreCase = true) -> handleSendInvoice(message)
             text.startsWith(Constants.Command.AGENT, ignoreCase = true) -> handleAgent(text, message.from?.id)
+            text.startsWith(Constants.Command.HELLO_WORLD, ignoreCase = true) -> CommandResult(isCommand = true, responseText = "привет мир!")
             else -> CommandResult(isCommand = false)
         }
     }
