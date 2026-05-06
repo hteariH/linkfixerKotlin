@@ -18,7 +18,7 @@ class CommandHandlerService(
     private val logger = LoggerFactory.getLogger(CommandHandlerService::class.java)
 
     companion object {
-        const val AGENT_COST = 10
+        const val AGENT_COST = 15
     }
 
     fun handleCommand(message: Message): CommandResult {
