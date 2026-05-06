@@ -17,7 +17,7 @@ object Constants {
 
     object Message {
         const val AGENT_DISPATCHED = "✅ Команда отправлена в GitHub Actions. Следи за прогрессом во вкладке Actions репозитория."
-        const val AGENT_NO_BALANCE = "❌ Недостаточно звёзд для выполнения команды. Нужно 10 ⭐."
+        const val AGENT_NO_BALANCE = "❌ Недостаточно звёзд для выполнения команды. Нужно 15 ⭐."
         const val AGENT_USAGE = "Использование: /agent [инструкция]\nПример: /agent Добавь unit-тест для класса MessageCacheService"
         const val JOKE_ENABLED = "Joke enabled"
         const val JOKE_DISABLED = "Joke disabled"
