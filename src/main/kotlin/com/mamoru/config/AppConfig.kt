@@ -9,4 +9,5 @@ class AppConfig {
 
     @Bean
     fun restTemplate(): RestTemplate = RestTemplate()
+
 }
