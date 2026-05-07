@@ -8,6 +8,7 @@ import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
 import org.telegram.telegrambots.meta.api.methods.AnswerPreCheckoutQuery
 import org.telegram.telegrambots.meta.api.methods.invoices.SendInvoice
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText
 import org.telegram.telegrambots.meta.api.objects.message.Message
 import org.telegram.telegrambots.meta.api.objects.payments.LabeledPrice
 import org.telegram.telegrambots.meta.api.objects.Update
@@ -201,30 +202,9 @@ open class HydraManagerBot(
         val isManaged = targetUserId != null
 
         if (isManaged || settings.commentOnPictures) {
-            result.mentionResponse?.let { responseText ->
-                val parts = splitAndTruncate(responseText)
-                parts.forEachIndexed { index, part ->
-                    val builder = SendMessage.builder()
-                        .chatId(message.chatId.toString())
-                        .text(part)
-                    if (index == 0) builder.replyToMessageId(message.messageId)
-                    val sendMessage = builder.build()
-                    try {
-                        val sent = telegramClient.execute(sendMessage)
-                        if (isManaged) {
-                            messageCacheService.cacheSentMessage(
-                                chatId = message.chatId, messageId = sent.messageId, text = part,
-                                botUsername = botName,
-                                replyToMessageId = if (index == 0) message.messageId else null
-                            )
-                            logger.debug("[{}] Cached own sent message id={}", botName, sent.messageId)
-                        }
-                        logger.info("Sent response to chat ${message.chatId}")
-                    } catch (e: TelegramApiException) {
-                        logger.error("Failed to send mention response: ${e.message}", e)
-                    }
-                }
-
+            result.mentionResponseStream?.let { stream ->
+                handleStreamResponse(message, stream, isManaged)
+                
                 // Deduct stars only when a response was actually sent
                 if (userId != null) {
                     starBalanceService.deductStars(userId, StarBalanceService.COST_PER_MESSAGE)
@@ -236,6 +216,122 @@ open class HydraManagerBot(
         if (settings.commentOnPictures) {
             result.jokeResponse?.let { jokeText ->
                 sendMessageToChat(message.chatId, jokeText)
+            }
+        }
+    }
+
+    private fun handleStreamResponse(originalMessage: Message, stream: Sequence<String>, isManaged: Boolean) {
+        var currentText = ""
+        var lastUpdateText = ""
+        var sentMessage: Message? = null
+        var lastUpdateTime = 0L
+        val updateIntervalMs = 1500L
+
+        try {
+            for (chunk in stream) {
+                currentText += chunk
+                val now = System.currentTimeMillis()
+
+                if (sentMessage == null) {
+                    if (currentText.length >= 10 || now - lastUpdateTime > 500) {
+                        sentMessage = telegramClient.execute(
+                            SendMessage.builder()
+                                .chatId(originalMessage.chatId.toString())
+                                .replyToMessageId(originalMessage.messageId)
+                                .text(currentText.ifBlank { "..." })
+                                .build()
+                        )
+                        lastUpdateText = currentText
+                        lastUpdateTime = now
+                    }
+                } else if (now - lastUpdateTime > updateIntervalMs && currentText != lastUpdateText && currentText.isNotBlank()) {
+                    // Truncate if exceeds Telegram limit
+                    val textToSet = if (currentText.length > 4096) currentText.substring(0, 4096) else currentText
+                    
+                    try {
+                        telegramClient.execute(
+                            EditMessageText.builder()
+                                .chatId(originalMessage.chatId.toString())
+                                .messageId(sentMessage.messageId)
+                                .text(textToSet)
+                                .build()
+                        )
+                        lastUpdateText = currentText
+                        lastUpdateTime = now
+                    } catch (e: TelegramApiException) {
+                        if (e.message?.contains("message is not modified", ignoreCase = true) == true) {
+                            // Ignore
+                        } else {
+                            logger.warn("Failed to edit message: ${e.message}")
+                        }
+                    }
+                }
+            }
+
+            // Final update
+            if (sentMessage != null && currentText != lastUpdateText && currentText.isNotBlank()) {
+                val finalParts = splitAndTruncate(currentText)
+                val firstPart = finalParts.getOrNull(0) ?: "..."
+                
+                try {
+                    telegramClient.execute(
+                        EditMessageText.builder()
+                            .chatId(originalMessage.chatId.toString())
+                            .messageId(sentMessage.messageId)
+                            .text(firstPart)
+                            .build()
+                    )
+                } catch (e: TelegramApiException) {
+                    if (e.message?.contains("message is not modified", ignoreCase = true) == false) {
+                        logger.warn("Failed final edit: ${e.message}")
+                    }
+                }
+
+                // If message was split, send remaining parts
+                for (i in 1 until finalParts.size) {
+                    telegramClient.execute(
+                        SendMessage.builder()
+                            .chatId(originalMessage.chatId.toString())
+                            .text(finalParts[i])
+                            .build()
+                    )
+                }
+                
+                if (isManaged) {
+                    messageCacheService.cacheSentMessage(
+                        chatId = originalMessage.chatId,
+                        messageId = sentMessage.messageId,
+                        text = firstPart,
+                        botUsername = botName,
+                        replyToMessageId = originalMessage.messageId
+                    )
+                }
+            } else if (sentMessage == null && currentText.isNotBlank()) {
+                // Never sent initial message, send it now
+                val parts = splitAndTruncate(currentText)
+                parts.forEachIndexed { index, part ->
+                    val sent = telegramClient.execute(
+                        SendMessage.builder()
+                            .chatId(originalMessage.chatId.toString())
+                            .replyToMessageId(if (index == 0) originalMessage.messageId else null)
+                            .text(part)
+                            .build()
+                    )
+                    if (isManaged && index == 0) {
+                        messageCacheService.cacheSentMessage(
+                            chatId = originalMessage.chatId,
+                            messageId = sent.messageId,
+                            text = part,
+                            botUsername = botName,
+                            replyToMessageId = originalMessage.messageId
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            logger.error("Error during stream processing: ${e.message}", e)
+            if (sentMessage == null) {
+                sendMessageToChat(originalMessage.chatId, "Sorry, something went wrong while generating response.")
             }
         }
     }

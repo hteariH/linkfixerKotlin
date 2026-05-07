@@ -298,4 +298,26 @@ class GroqAIService(
             return ImpersonationResponse("I couldn't generate a response at this time.")
         }
     }
+
+    override fun streamMentionResponse(
+        messageText: String,
+        chatId: Long,
+        replyText: String?,
+        from: String?,
+        replyPhoto: PhotoSize?,
+        telegramClient: TelegramClient?,
+        botUsername: String
+    ): Sequence<String> = emptySequence()
+
+    override fun streamImpersonationResponse(
+        messageText: String,
+        replyText: String?,
+        from: String?,
+        replyPhoto: PhotoSize?,
+        telegramClient: TelegramClient?,
+        botUsername: String,
+        userid: Long,
+        replyChain: List<CachedMessage>,
+        recentMessages: List<CachedMessage>
+    ): Sequence<String> = emptySequence()
 }

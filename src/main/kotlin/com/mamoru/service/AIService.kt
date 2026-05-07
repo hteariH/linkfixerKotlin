@@ -34,4 +34,26 @@ interface AIService {
         replyChain: List<CachedMessage> = emptyList(),
         recentMessages: List<CachedMessage> = emptyList()
     ): ImpersonationResponse
+
+    fun streamMentionResponse(
+        messageText: String,
+        chatId: Long,
+        replyText: String? = null,
+        from: String? = null,
+        replyPhoto: PhotoSize? = null,
+        telegramClient: TelegramClient? = null,
+        botUsername: String = "HydraManagerBot"
+    ): Sequence<String>
+
+    fun streamImpersonationResponse(
+        messageText: String,
+        replyText: String? = null,
+        from: String? = null,
+        replyPhoto: PhotoSize? = null,
+        telegramClient: TelegramClient? = null,
+        botUsername: String = "HydraManagerBot",
+        userid: Long,
+        replyChain: List<CachedMessage> = emptyList(),
+        recentMessages: List<CachedMessage> = emptyList()
+    ): Sequence<String>
 }

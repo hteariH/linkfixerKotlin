@@ -84,20 +84,19 @@ class MessageProcessorService(
             if (isManaged) {
                 logger.debug("[{}] Calling impersonation for userId={}, replyChain={} msgs, cleanText='{}'",
                     botUsername, targetUserId, replyChain.size, cleanText.take(80))
-                val response = aiService.generateImpersonationResponse(
+                result.mentionResponseStream = aiService.streamImpersonationResponse(
                     cleanText, replyText, from, replyPhoto,
                     telegramClient, botUsername, targetUserId!!,
                     replyChain, recentMessages
                 )
-                result.mentionResponse = response.text
-                result.impersonatedUserId = response.impersonatedUserId
-                logger.info("[{}] Generated impersonation response as user {} in chat {}", botUsername, targetUserId, chatId)
+                result.impersonatedUserId = targetUserId
+                logger.info("[{}] Started impersonation response stream as user {} in chat {}", botUsername, targetUserId, chatId)
             } else {
-                result.mentionResponse = aiService.generateMentionResponse(
+                result.mentionResponseStream = aiService.streamMentionResponse(
                     cleanText, chatId, replyText, from, replyPhoto,
                     telegramClient, botUsername
                 )
-                logger.info("Generated mention response in chat $chatId")
+                logger.info("Started mention response stream in chat $chatId")
             }
         } else if (isManaged && !isMentioned) {
             logger.debug("[{}] Skipping — not addressed (chat={} msgId={})", botUsername, chatId, message.messageId)
@@ -127,6 +126,7 @@ class MessageProcessorService(
     data class ProcessingResult(
         var jokeResponse: String? = null,
         var mentionResponse: String? = null,
-        var impersonatedUserId: Long? = null
+        var impersonatedUserId: Long? = null,
+        var mentionResponseStream: Sequence<String>? = null
     )
 }

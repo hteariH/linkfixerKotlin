@@ -41,6 +41,29 @@ class GeminiAIService(
         return failureMessage
     }
 
+    private fun streamWithModels(content: Content): Sequence<String> = sequence {
+        var lastError: Exception? = null
+        for (model in Constants.AI.MODEL_CANDIDATES) {
+            logger.info("Streaming content with model $model")
+            try {
+                val responseStream = client.models.generateContentStream(model, content, null)
+                responseStream.use { stream ->
+                    for (response in stream) {
+                        val text = response.text()
+                        if (!text.isNullOrBlank()) {
+                            yield(text)
+                        }
+                    }
+                }
+                return@sequence
+            } catch (e: Exception) {
+                lastError = e
+                logger.warn("Model $model failed to stream content: ${e.message}")
+            }
+        }
+        if (lastError != null) logger.error("All models failed to stream content", lastError)
+    }
+
     private fun generateWithModels(prompt: String, failureMessage: String): String {
         var lastError: Exception? = null
         for (model in Constants.AI.MODEL_CANDIDATES) {
@@ -83,6 +106,32 @@ class GeminiAIService(
         telegramClient: TelegramClient?,
         botUsername: String
     ): String {
+        val content = buildMentionContent(messageText, chatId, replyText, from, replyPhoto, telegramClient, botUsername)
+        return generateWithModels(content, Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE)
+    }
+
+    override fun streamMentionResponse(
+        messageText: String,
+        chatId: Long,
+        replyText: String?,
+        from: String?,
+        replyPhoto: PhotoSize?,
+        telegramClient: TelegramClient?,
+        botUsername: String
+    ): Sequence<String> {
+        val content = buildMentionContent(messageText, chatId, replyText, from, replyPhoto, telegramClient, botUsername)
+        return streamWithModels(content)
+    }
+
+    private fun buildMentionContent(
+        messageText: String,
+        chatId: Long,
+        replyText: String?,
+        from: String?,
+        replyPhoto: PhotoSize?,
+        telegramClient: TelegramClient?,
+        botUsername: String
+    ): Content {
         val picturePrompt = chatSettingsManagementService.getChatSettings(chatId).picturePrompt
         val contentParts = mutableListOf<Part>()
         contentParts.add(Part.fromText(picturePrompt))
@@ -115,8 +164,7 @@ class GeminiAIService(
             contentParts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I can't see it right now. Please acknowledge this in your response."))
         }
 
-        val content = Content.fromParts(*contentParts.toTypedArray())
-        return generateWithModels(content, Constants.AI.DEFAULT_PICTURE_FAILURE_MESSAGE)
+        return Content.fromParts(*contentParts.toTypedArray())
     }
 
     override fun generateImpersonationResponse(
@@ -139,90 +187,11 @@ class GeminiAIService(
 
             val hasRecentMessages = recentMessages.isNotEmpty()
 
-            fun buildParts(includeRecentMessages: Boolean, includeContextHint: Boolean): List<Part> {
-                val parts = mutableListOf<Part>()
-
-                val systemPrompt = buildString {
-                    append("""
-                        You are now impersonating a person whose messages are provided below.
-                        Your task is to respond to the given message in the same style, tone, and personality as the person you're impersonating.
-                        Use the message history to understand their communication style, vocabulary, topics of interest, and personality traits.
-                        
-                        If the person you are replying to is another bot or AI, be concise and avoid getting stuck in a loop.
-
-                        Here is the message history of the person you're impersonating:
-
-                        $savedMessages
-
-                        Based on this history, respond to the following message as if you were this person.
-                    """.trimIndent())
-                    if (includeContextHint) {
-                        append("\n\nIMPORTANT: If you feel you need recent general chat history to understand the conversational context before responding, reply with exactly '[NEED_CONTEXT]' and nothing else. Otherwise, respond normally as the impersonated person.")
-                    }
-                }
-                parts.add(Part.fromText(systemPrompt))
-
-                if (includeRecentMessages) {
-                    parts.add(Part.fromText("Here is the recent chat history for context (oldest first):"))
-                    for (msg in recentMessages) {
-                        val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
-                        parts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
-                        if (msg.photoFileId != null && telegramClient != null) {
-                            val imageBytes = downloadImage(telegramClient, msg.photoFileId)
-                            if (imageBytes != null) parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-                        }
-                    }
-                }
-
-                if (replyChain.isNotEmpty()) {
-                    parts.add(Part.fromText("Here is the conversation thread leading up to this message (oldest first):"))
-                    for (msg in replyChain) {
-                        val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
-                        parts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
-                        if (msg.photoFileId != null && telegramClient != null) {
-                            val imageBytes = downloadImage(telegramClient, msg.photoFileId)
-                            if (imageBytes != null) parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-                            else parts.add(Part.fromText("[image — could not be loaded]"))
-                        }
-                    }
-                }
-
-                if (replyText != null && from != null) {
-//                    val fromPrefix = if (botRegistryService.isBot(from)) "[BOT] " else ""
-                    parts.add(
-                        Part.fromText(
-                            "This is the message being directly replied to: ${
-                                replyText.replace("@$botUsername", "", ignoreCase = true)
-                            }, sent by: " +
-//                                    "$fromPrefix" +
-                                    from
-                        )
-                    )
-                }
-
-                parts.add(
-                    Part.fromText(
-                        "Respond to this message as the person I'm impersonating: ${
-                            messageText.replace("@$botUsername", "", ignoreCase = true)
-                        }"
-                    )
-                )
-
-                if (replyPhoto != null && telegramClient != null) {
-                    val imageBytes = downloadImage(telegramClient, replyPhoto.fileId)
-                    if (imageBytes != null) {
-                        parts.add(Part.fromText("There is an image in the message I'm replying to. Consider it in your response if relevant."))
-                        parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
-                    } else {
-                        parts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I couldn't download it."))
-                    }
-                }
-
-                return parts
-            }
-
             // First pass: no recent messages; hint model it can request them if needed
-            val firstPassParts = buildParts(includeRecentMessages = false, includeContextHint = hasRecentMessages)
+            val firstPassParts = buildImpersonationParts(
+                savedMessages, recentMessages, replyChain, messageText, replyText, from, replyPhoto,
+                telegramClient, botUsername, includeRecentMessages = false, includeContextHint = hasRecentMessages
+            )
             val firstResponse = generateWithModels(
                 Content.fromParts(*firstPassParts.toTypedArray()),
                 "I couldn't generate a response at this time."
@@ -231,7 +200,10 @@ class GeminiAIService(
             if (firstResponse.trim() == "[NEED_CONTEXT]" && hasRecentMessages) {
                 logger.info("[{}] Model requested recent context for userId={}, retrying with {} messages",
                     botUsername, userid, recentMessages.size)
-                val secondPassParts = buildParts(includeRecentMessages = true, includeContextHint = false)
+                val secondPassParts = buildImpersonationParts(
+                    savedMessages, recentMessages, replyChain, messageText, replyText, from, replyPhoto,
+                    telegramClient, botUsername, includeRecentMessages = true, includeContextHint = false
+                )
                 val finalResponse = generateWithModels(
                     Content.fromParts(*secondPassParts.toTypedArray()),
                     "I couldn't generate a response at this time."
@@ -244,5 +216,120 @@ class GeminiAIService(
             logger.error("Error generating impersonation response: ${e.message}", e)
             return ImpersonationResponse("I couldn't generate a response at this time.")
         }
+    }
+
+    override fun streamImpersonationResponse(
+        messageText: String,
+        replyText: String?,
+        from: String?,
+        replyPhoto: PhotoSize?,
+        telegramClient: TelegramClient?,
+        botUsername: String,
+        userid: Long,
+        replyChain: List<CachedMessage>,
+        recentMessages: List<CachedMessage>
+    ): Sequence<String> {
+        val savedMessages = messageAnalyzerService.readSavedMessages(userid)
+        if (savedMessages.isNullOrEmpty()) {
+            return emptySequence()
+        }
+
+        val hasRecentMessages = recentMessages.isNotEmpty()
+        val parts = buildImpersonationParts(
+            savedMessages, recentMessages, replyChain, messageText, replyText, from, replyPhoto,
+            telegramClient, botUsername, includeRecentMessages = hasRecentMessages, includeContextHint = false
+        )
+        return streamWithModels(Content.fromParts(*parts.toTypedArray()))
+    }
+
+    private fun buildImpersonationParts(
+        savedMessages: String,
+        recentMessages: List<CachedMessage>,
+        replyChain: List<CachedMessage>,
+        messageText: String,
+        replyText: String?,
+        from: String?,
+        replyPhoto: PhotoSize?,
+        telegramClient: TelegramClient?,
+        botUsername: String,
+        includeRecentMessages: Boolean,
+        includeContextHint: Boolean
+    ): List<Part> {
+        val parts = mutableListOf<Part>()
+
+        val systemPrompt = buildString {
+            append("""
+                You are now impersonating a person whose messages are provided below.
+                Your task is to respond to the given message in the same style, tone, and personality as the person you're impersonating.
+                Use the message history to understand their communication style, vocabulary, topics of interest, and personality traits.
+                
+                If the person you are replying to is another bot or AI, be concise and avoid getting stuck in a loop.
+
+                Here is the message history of the person you're impersonating:
+
+                $savedMessages
+
+                Based on this history, respond to the following message as if you were this person.
+            """.trimIndent())
+            if (includeContextHint) {
+                append("\n\nIMPORTANT: If you feel you need recent general chat history to understand the conversational context before responding, reply with exactly '[NEED_CONTEXT]' and nothing else. Otherwise, respond normally as the impersonated person.")
+            }
+        }
+        parts.add(Part.fromText(systemPrompt))
+
+        if (includeRecentMessages) {
+            parts.add(Part.fromText("Here is the recent chat history for context (oldest first):"))
+            for (msg in recentMessages) {
+                val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
+                parts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
+                if (msg.photoFileId != null && telegramClient != null) {
+                    val imageBytes = downloadImage(telegramClient, msg.photoFileId)
+                    if (imageBytes != null) parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+                }
+            }
+        }
+
+        if (replyChain.isNotEmpty()) {
+            parts.add(Part.fromText("Here is the conversation thread leading up to this message (oldest first):"))
+            for (msg in replyChain) {
+                val msgText = msg.text?.replace("@$botUsername", "", ignoreCase = true)?.trim() ?: "(no text)"
+                parts.add(Part.fromText("[${msg.displayName()}]: $msgText"))
+                if (msg.photoFileId != null && telegramClient != null) {
+                    val imageBytes = downloadImage(telegramClient, msg.photoFileId)
+                    if (imageBytes != null) parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+                    else parts.add(Part.fromText("[image — could not be loaded]"))
+                }
+            }
+        }
+
+        if (replyText != null && from != null) {
+            parts.add(
+                Part.fromText(
+                    "This is the message being directly replied to: ${
+                        replyText.replace("@$botUsername", "", ignoreCase = true)
+                    }, sent by: " + from
+                )
+            )
+        }
+
+        parts.add(
+            Part.fromText(
+                "Respond to this message as the person I'm impersonating: ${
+                    messageText.replace("@$botUsername", "", ignoreCase = true)
+                }"
+            )
+        )
+
+        if (replyPhoto != null && telegramClient != null) {
+            val imageBytes = downloadImage(telegramClient, replyPhoto.fileId)
+            if (imageBytes != null) {
+                parts.add(Part.fromText("There is an image in the message I'm replying to. Consider it in your response if relevant."))
+                parts.add(Part.fromBytes(imageBytes, "image/jpeg"))
+            } else {
+                parts.add(Part.fromText("Note: The message I'm replying to contained a photo, but I couldn't download it."))
+            }
+        }
+
+        return parts
     }
 }
