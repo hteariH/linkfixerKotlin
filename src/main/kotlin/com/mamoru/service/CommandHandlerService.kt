@@ -17,10 +17,6 @@ class CommandHandlerService(
 ) {
     private val logger = LoggerFactory.getLogger(CommandHandlerService::class.java)
 
-    companion object {
-        const val AGENT_COST = 15
-    }
-
     fun handleCommand(message: Message): CommandResult {
         val chatId = message.chatId
         val text = message.text
@@ -34,7 +30,7 @@ class CommandHandlerService(
             text.startsWith(Constants.Command.CREATE_BOT, ignoreCase = true) -> handleCreateBot(text, message.chatId)
             text.startsWith(Constants.Command.ACTIVATE_BOT, ignoreCase = true) -> handleActivateBot(text)
             text.startsWith(Constants.Command.SEND_INVOICE, ignoreCase = true) -> handleSendInvoice(message)
-            text.startsWith(Constants.Command.AGENT, ignoreCase = true) -> handleAgent(text, message.from?.id)
+            text.startsWith(Constants.Command.AGENT, ignoreCase = true) -> handleAgent(message)
             text.startsWith(Constants.Command.HELLO_WORLD, ignoreCase = true) -> CommandResult(isCommand = true, responseText = "привет мир!")
             else -> CommandResult(isCommand = false)
         }
@@ -111,17 +107,29 @@ class CommandHandlerService(
         }
     }
 
-    private fun handleAgent(text: String, userId: Long?): CommandResult {
+    private fun handleAgent(message: Message): CommandResult {
+        val text = message.text
+        val userId = message.from?.id
         val instruction = text.substringAfter(Constants.Command.AGENT).trim()
         if (instruction.isEmpty()) {
             return CommandResult(isCommand = true, responseText = Constants.Message.AGENT_USAGE)
         }
-        if (userId == null || starBalanceService.getBalance(userId) < AGENT_COST) {
-            return CommandResult(isCommand = true, responseText = Constants.Message.AGENT_NO_BALANCE)
+        if (userId == null || starBalanceService.getBalance(userId) < StarBalanceService.AGENT_COST) {
+            val client = primaryBotHolder.client
+            if (client != null) {
+                starBalanceService.sendStarInvoice(
+                    client,
+                    message.chatId,
+                    userId ?: 0L,
+                    message.messageId,
+                    StarBalanceService.AGENT_COST
+                )
+            }
+            return CommandResult(isCommand = true, responseText = Constants.Message.agentNoBalance(StarBalanceService.AGENT_COST))
         }
         val error = gitHubDispatchService.dispatch(instruction)
         return if (error == null) {
-            starBalanceService.deductStars(userId, AGENT_COST)
+            starBalanceService.deductStars(userId, StarBalanceService.AGENT_COST)
             CommandResult(isCommand = true, responseText = Constants.Message.AGENT_DISPATCHED)
         } else {
             CommandResult(isCommand = true, responseText = error)

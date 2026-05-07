@@ -20,6 +20,7 @@ class StarBalanceService(
 
     companion object {
         const val COST_PER_MESSAGE = 3
+        const val AGENT_COST = 39
 
         /** callback_data suffix → amount in stars */
         val TOP_UP_OPTIONS = linkedMapOf(
@@ -34,6 +35,9 @@ class StarBalanceService(
 
         val INVOICE_PAYLOADS: Set<String> =
             TOP_UP_OPTIONS.values.map { "stars_topup_$it" }.toSet()
+
+        fun promptInsufficientBalance(cost: Int) = "У тебя недостаточно звёзд ⭐ для ответа бота ($cost ⭐ за сообщение).\nВыбери сколько пополнить:"
+        fun promptTopUp(cost: Int, primaryBotName: String) = "У тебя недостаточно звёзд ⭐. Пополни баланс через @$primaryBotName ($cost ⭐ за сообщение)."
     }
 
     fun getBalance(userId: Long): Int =
@@ -42,7 +46,7 @@ class StarBalanceService(
     fun hasEnoughBalance(userId: Long): Boolean =
         getBalance(userId) >= COST_PER_MESSAGE
 
-    fun deductStars(userId: Long, amount: Int = COST_PER_MESSAGE) {
+    fun deductStars(userId: Long, amount: Int) {
         val current = userBalanceRepository.findById(userId).orElse(UserBalance(userId, COST_PER_MESSAGE))
         val newBalance = maxOf(0, current.starBalance - amount)
         userBalanceRepository.save(current.copy(starBalance = newBalance))
@@ -67,7 +71,8 @@ class StarBalanceService(
         callerClient: TelegramClient,
         chatId: Long,
         userId: Long,
-        replyToMessageId: Int
+        replyToMessageId: Int,
+        cost: Int = COST_PER_MESSAGE
     ) {
         val primaryClient = primaryBotHolder.client
         val primaryBotName = primaryBotHolder.botName
@@ -78,18 +83,17 @@ class StarBalanceService(
         }
 
         // 1. Try current chat
-        if (sendSelectionMessage(primaryClient, chatId.toString(), replyToMessageId)) return
+        if (sendSelectionMessage(primaryClient, chatId.toString(), replyToMessageId, cost)) return
 
         // 2. Try user's private chat
-        if (sendSelectionMessage(primaryClient, userId.toString(), null)) return
+        if (sendSelectionMessage(primaryClient, userId.toString(), null, cost)) return
 
         // 3. Fallback: plain text
         try {
             val msg = SendMessage.builder()
                 .chatId(chatId.toString())
                 .replyToMessageId(replyToMessageId)
-                .text("У тебя недостаточно звёзд ⭐. " +
-                    "Пополни баланс через @$primaryBotName (${COST_PER_MESSAGE} ⭐ за сообщение).")
+                .text(promptTopUp(cost, primaryBotName ?: "HydraManagerBot"))
                 .build()
             callerClient.execute(msg)
         } catch (e: TelegramApiException) {
@@ -100,7 +104,8 @@ class StarBalanceService(
     private fun sendSelectionMessage(
         client: TelegramClient,
         chatId: String,
-        replyToMessageId: Int?
+        replyToMessageId: Int?,
+        cost: Int
     ): Boolean {
         return try {
             val row = InlineKeyboardRow(
@@ -117,7 +122,7 @@ class StarBalanceService(
 
             val builder = SendMessage.builder()
                 .chatId(chatId)
-                .text("У тебя недостаточно звёзд ⭐ для ответа бота (${COST_PER_MESSAGE} ⭐ за сообщение).\nВыбери сколько пополнить:")
+                .text(promptInsufficientBalance(cost))
                 .replyMarkup(keyboard)
             if (replyToMessageId != null) builder.replyToMessageId(replyToMessageId)
             client.execute(builder.build())

@@ -171,8 +171,7 @@ open class HydraManagerBot(
             if (!starBalanceService.hasEnoughBalance(userId)) {
                 val balance = starBalanceService.getBalance(userId)
                 sendMessageToChat(message.chatId,
-                    "У тебя недостаточно звёзд ⭐ (баланс: $balance). " +
-                    "Пополни баланс, чтобы продолжить (${StarBalanceService.COST_PER_MESSAGE} ⭐ за сообщение)."
+                    StarBalanceService.promptTopUp(StarBalanceService.COST_PER_MESSAGE, botName)
                 )
                 starBalanceService.sendStarInvoice(telegramClient, message.chatId, userId, message.messageId)
                 return
@@ -228,7 +227,7 @@ open class HydraManagerBot(
 
                 // Deduct stars only when a response was actually sent
                 if (userId != null) {
-                    starBalanceService.deductStars(userId)
+                    starBalanceService.deductStars(userId, StarBalanceService.COST_PER_MESSAGE)
                     logger.info("[{}] Deducted ${StarBalanceService.COST_PER_MESSAGE} ⭐ from userId=$userId", botName)
                 }
             }
