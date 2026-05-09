@@ -10,6 +10,9 @@ on:
         description: 'Target branch'
         required: false
         default: 'ManagerBot_oc'
+      chat_id:
+        description: 'Telegram Chat ID'
+        required: false
 
 jobs:
   run-opencode:
@@ -36,5 +39,16 @@ jobs:
         with:
           model: google/gemini-3.1-pro-preview
           share: true
-          steps: 100
           prompt: ${{ github.event.inputs.message }}
+
+      - name: Notify Bot
+        if: always()
+        run: |
+          if [ -n "${{ github.event.inputs.chat_id }}" ]; then
+            curl -X POST "${{ secrets.BOT_WEBHOOK_URL }}/api/github/webhook" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"chat_id\": \"${{ github.event.inputs.chat_id }}\",
+              \"message\": \"✅ OpenCode Action завершен. Статус: ${{ job.status }}. Репозиторий: ${{ github.repository }}\"
+            }"
+          fi

@@ -127,7 +127,7 @@ class CommandHandlerService(
             }
             return CommandResult(isCommand = true, responseText = Constants.Message.agentNoBalance(StarBalanceService.AGENT_COST))
         }
-        val error = gitHubDispatchService.dispatch(instruction)
+        val error = gitHubDispatchService.dispatch(instruction, message.chatId)
         return if (error == null) {
             starBalanceService.deductStars(userId, StarBalanceService.AGENT_COST)
             CommandResult(isCommand = true, responseText = Constants.Message.AGENT_DISPATCHED)

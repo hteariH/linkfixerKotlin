@@ -87,6 +87,30 @@ The project includes a GitHub Actions workflow (`deploy.yml`) that automates:
 - `docker-compose.yml`: Service orchestration for the application and Redis.
 - `Dockerfile`: Multi-stage Docker build for the application environment.
 
+## GitHub Agent Integration
+
+The bot can send instructions to GitHub Actions to perform automated tasks. When an instruction is sent via `/agent`, the bot includes the current `chat_id` in the request.
+
+### Setting up the Callback
+
+To receive notifications when the GitHub Action completes (e.g., after creating a Merge Request), your GitHub Workflow should send a POST request back to the bot.
+
+**Example step in GitHub Workflow:**
+
+```yaml
+- name: Notify Bot
+  if: always()
+  run: |
+    curl -X POST "${{ secrets.BOT_WEBHOOK_URL }}/api/github/webhook" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "chat_id": "${{ github.event.inputs.chat_id }}",
+      "message": "✅ Merge Request created: ${{ steps.create_pr.outputs.pr_url }}"
+    }'
+```
+
+*Note: Ensure `BOT_WEBHOOK_URL` is set in your GitHub Secrets (e.g., `https://your-bot-domain.com`).*
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

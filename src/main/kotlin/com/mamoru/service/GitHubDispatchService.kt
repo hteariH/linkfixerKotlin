@@ -25,7 +25,7 @@ class GitHubDispatchService(
      * Sends a repository_dispatch event to GitHub Actions with the given instruction.
      * Returns null on success, or an error message string on failure.
      */
-    fun dispatch(instruction: String): String? {
+    fun dispatch(instruction: String, chatId: Long? = null): String? {
         if (pat.isBlank() || owner.isBlank() || repo.isBlank()) {
             logger.error("GitHub dispatch is not configured (pat/owner/repo missing)")
             return "❌ GitHub dispatch не налаштований: перевірте змінні GITHUB_PAT, GITHUB_OWNER, GITHUB_REPO."
@@ -55,13 +55,16 @@ class GitHubDispatchService(
             7. FAILURE TO SUBMIT IMMEDIATELY AFTER VERIFICATION IS A VIOLATION OF PROTOCOL.
         """.trimIndent()
 
-        val body = mapOf(
+        val body = mutableMapOf(
             "ref" to ref, // Ветка, на которой запускать
-            "inputs" to mapOf(
+            "inputs" to mutableMapOf(
                 "message" to fullInstruction,
                 "ref" to ref
             )
         )
+        if (chatId != null) {
+            (body["inputs"] as MutableMap<String, Any>)["chat_id"] = chatId.toString()
+        }
         val entity = HttpEntity(body, headers)
 
         return try {
@@ -83,6 +86,40 @@ class GitHubDispatchService(
         } catch (e: Exception) {
             logger.error("GitHub dispatch unexpected error", e)
             "❌ Не удалось отправить команду в GitHub: ${e.message}"
+        }
+    }
+    /**
+     * Fetches the latest pull request for the repository.
+     * Returns the PR URL as a string, or null if not found/error.
+     */
+    fun getLatestPullRequest(): String? {
+        if (pat.isBlank() || owner.isBlank() || repo.isBlank()) {
+            return null
+        }
+
+        val url = "https://api.github.com/repos/$owner/$repo/pulls?state=all&sort=created&direction=desc&per_page=1"
+        
+        val headers = HttpHeaders().apply {
+            setBearerAuth(pat)
+            set("Accept", "application/vnd.github+json")
+            set("X-GitHub-Api-Version", "2022-11-28")
+        }
+        
+        val entity = HttpEntity<Unit>(headers)
+
+        return try {
+            logger.info("Fetching latest PR from: $url")
+            val response = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET, entity, List::class.java)
+            val prs = response.body
+            if (prs != null && prs.isNotEmpty()) {
+                val lastPr = prs[0] as Map<*, *>
+                lastPr["html_url"]?.toString()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            logger.error("Error fetching latest PR", e)
+            null
         }
     }
 }
