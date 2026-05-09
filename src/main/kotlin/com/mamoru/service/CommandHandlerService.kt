@@ -13,6 +13,7 @@ class CommandHandlerService(
     private val starBalanceService: StarBalanceService,
     private val primaryBotHolder: PrimaryBotHolder,
     private val gitHubDispatchService: GitHubDispatchService,
+    private val messageCacheService: MessageCacheService,
     @Lazy private val managedBotService: ManagedBotService
 ) {
     private val logger = LoggerFactory.getLogger(CommandHandlerService::class.java)
@@ -32,6 +33,7 @@ class CommandHandlerService(
             text.startsWith(Constants.Command.SEND_INVOICE, ignoreCase = true) -> handleSendInvoice(message)
             text.startsWith(Constants.Command.AGENT, ignoreCase = true) -> handleAgent(message)
             text.startsWith(Constants.Command.HELLO_WORLD, ignoreCase = true) -> CommandResult(isCommand = true, responseText = "привет мир!")
+            text.startsWith(Constants.Command.PIDOR, ignoreCase = true) -> handlePidor(chatId)
             else -> CommandResult(isCommand = false)
         }
     }
@@ -177,6 +179,20 @@ class CommandHandlerService(
         logger.info("Activating managed bot $botUsername for @$targetUsername (botId=$botId)")
         val result = managedBotService.activateManagedBot(botUsername, targetUsername, botId)
         return CommandResult(isCommand = true, responseText = result)
+    }
+
+    private fun handlePidor(chatId: Long): CommandResult {
+        val recentMessages = messageCacheService.getRecentMessages(chatId, 100)
+        val users = recentMessages.map { it.displayName() }
+            .filter { it != "unknown" }
+            .distinct()
+        
+        return if (users.isNotEmpty()) {
+            val randomUser = users.random()
+            CommandResult(isCommand = true, responseText = "Сегодня пидор: $randomUser 🎉")
+        } else {
+            CommandResult(isCommand = true, responseText = "Не удалось найти участников для выбора.")
+        }
     }
 
     /**

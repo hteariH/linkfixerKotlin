@@ -13,6 +13,7 @@ object Constants {
         const val SEND_INVOICE = "/sendInvoice"
         const val AGENT = "/agent"
         const val HELLO_WORLD = "/приветмир"
+        const val PIDOR = "/пидор"
     }
 
     object Message {
