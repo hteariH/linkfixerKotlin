@@ -32,8 +32,8 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-annotations")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
-    implementation("org.telegram:telegrambots-springboot-longpolling-starter:9.5.0")
-    implementation("org.telegram:telegrambots-client:9.5.0")
+    implementation("org.telegram:telegrambots-springboot-longpolling-starter:9.6.0")
+    implementation("org.telegram:telegrambots-client:9.6.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("ch.qos.logback:logback-classic")
     implementation("com.google.genai:google-genai:1.0.0")

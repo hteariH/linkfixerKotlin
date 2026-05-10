@@ -12,6 +12,7 @@ import org.telegram.telegrambots.meta.api.objects.message.Message
 import org.telegram.telegrambots.meta.api.objects.payments.LabeledPrice
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
+import org.telegram.telegrambots.meta.api.objects.managed.ManagedBotUpdated
 
 open class HydraManagerBot(
     private val botToken: String,
@@ -23,7 +24,8 @@ open class HydraManagerBot(
     private val messageCacheService: MessageCacheService,
     private val starBalanceService: StarBalanceService,
     // Non-null for managed bots: always impersonates this user when mentioned
-    private val targetUserId: Long? = null
+    private val targetUserId: Long? = null,
+    private val managedBotService: ManagedBotService? = null
 ) : LongPollingSingleThreadUpdateConsumer {
 
     private val logger = LoggerFactory.getLogger(HydraManagerBot::class.java)
@@ -31,6 +33,22 @@ open class HydraManagerBot(
 
     override fun consume(update: Update) {
         logger.debug("Received update: {}", update)
+
+        // Handle managed bot creation event (Telegram API 9.6+)
+        if (update.hasManagedBot()) {
+            val managed = update.managedBot
+            if (managedBotService != null) {
+                val botId = managed.bot.id
+                val botUsername = managed.bot.userName
+                if (botUsername != null) {
+                    logger.info("Received managed_bot update: @$botUsername (id=$botId)")
+                    Thread {
+                        managedBotService.handleManagedBotCreated(botId, botUsername)
+                    }.also { it.isDaemon = true; it.start() }
+                }
+            }
+            return
+        }
 
         // Handle top-up button presses
         if (update.hasCallbackQuery()) {
