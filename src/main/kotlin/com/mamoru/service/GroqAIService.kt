@@ -12,17 +12,14 @@ import org.springframework.ai.openai.OpenAiChatOptions
 import org.springframework.ai.openai.api.OpenAiApi
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.io.ByteArrayResource
 import org.springframework.stereotype.Service
 import org.springframework.util.MimeTypeUtils
 import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.objects.photo.PhotoSize
 import org.telegram.telegrambots.meta.generics.TelegramClient
-import java.net.URL
 
-@Service
-@ConditionalOnProperty(name = ["ai.provider"], havingValue = "groq")
+@Service("groqAIService")
 class GroqAIService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val botRegistryService: BotRegistryService,
@@ -111,6 +108,16 @@ class GroqAIService(
             Constants.AI.DEFAULT_JOKE_PROMPT
         }
         return generateWithModels(listOf(UserMessage(prompt)), Constants.AI.DEFAULT_JOKE_FAILURE_MESSAGE)
+    }
+
+    fun generateCharacterDescription(history: String): String {
+        val system = "Проанализируй историю сообщений пользователя и составь подробное описание его персонажа (личности, привычек, стиля общения, интересов). Пиши на русском языке. Будь краток, но содержателен."
+        return generateWithModels(listOf(SystemMessage(system), UserMessage("История сообщений:\n$history")), "Не удалось составить описание.")
+    }
+
+    fun generateMemberTag(description: String): String {
+        val system = "На основе описания персонажа придумай короткий, остроумный и подходящий титул (MemberTag) для этого пользователя в Telegram. Только одно-два слова. Пиши на русском языке."
+        return generateWithModels(listOf(SystemMessage(system), UserMessage("Описание персонажа:\n$description")), "Участник")
     }
 
     private fun downloadImage(telegramClient: TelegramClient, fileId: String): ByteArray? = try {

@@ -8,8 +8,16 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 
+import org.springframework.beans.factory.annotation.Autowired
+import com.mamoru.entity.UserCharacter
+import com.mamoru.repository.UserCharacterRepository
+import com.mamoru.service.ScheduledMessageService.Companion.TARGET_CHAT_ID
+
 @Service
 class MessageAnalyzerService {
+    @Autowired
+    private lateinit var userCharacterRepository: UserCharacterRepository
+
     private val logger = LoggerFactory.getLogger(MessageAnalyzerService::class.java)
     private val dataDir = "/data"
     private val usernameMapFile = File("$dataDir/username_map.txt")
@@ -44,6 +52,16 @@ class MessageAnalyzerService {
                 usernameToUserId[key] = userId
                 persistUsernameMapping(key, userId)
                 logger.info("Mapped username @$username to userId $userId")
+            }
+        }
+
+        // Only for TARGET_CHAT users, ensure UserCharacter entry exists and name is updated
+        if (message.chatId == TARGET_CHAT_ID) {
+            val userChar = userCharacterRepository.findById(userId).orElse(UserCharacter(userId = userId))
+            val displayName = message.from?.let { "${it.firstName} ${it.lastName ?: ""}".trim() } ?: username
+            if (userChar.lastKnownName != displayName) {
+                userCharacterRepository.save(userChar.copy(lastKnownName = displayName))
+                logger.info("Updated lastKnownName for userId $userId to $displayName")
             }
         }
 

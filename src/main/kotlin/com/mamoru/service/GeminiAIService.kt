@@ -6,15 +6,13 @@ import com.google.genai.types.Part
 import com.mamoru.service.MessageCacheService.CachedMessage
 import com.mamoru.util.Constants
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.generics.TelegramClient
 import org.slf4j.LoggerFactory
 import org.telegram.telegrambots.meta.api.objects.photo.PhotoSize
 
-@Service
-@ConditionalOnProperty(name = ["ai.provider"], havingValue = "gemini", matchIfMissing = true)
+@Service("geminiAIService")
 class GeminiAIService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val botRegistryService: BotRegistryService

@@ -7,12 +7,12 @@ import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateC
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
 import org.telegram.telegrambots.meta.api.methods.AnswerPreCheckoutQuery
 import org.telegram.telegrambots.meta.api.methods.invoices.SendInvoice
+import org.telegram.telegrambots.meta.api.methods.groupadministration.SetChatAdministratorCustomTitle
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.message.Message
 import org.telegram.telegrambots.meta.api.objects.payments.LabeledPrice
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
-import org.telegram.telegrambots.meta.api.objects.managed.ManagedBotUpdated
 
 open class HydraManagerBot(
     private val botToken: String,
@@ -282,6 +282,20 @@ open class HydraManagerBot(
             } catch (e: Exception) {
                 logger.error("Failed to send message to chat $chatId: ${e.message}", e)
             }
+        }
+    }
+
+    open fun setMemberTag(chatId: Long, userId: Long, tag: String) {
+        val method = SetChatAdministratorCustomTitle.builder()
+            .chatId(chatId.toString())
+            .userId(userId)
+            .customTitle(tag)
+            .build()
+        try {
+            telegramClient.execute(method)
+            logger.info("Set custom title '$tag' for userId=$userId in chatId=$chatId")
+        } catch (e: Exception) {
+            logger.error("Failed to set custom title for userId=$userId in chatId=$chatId: ${e.message}")
         }
     }
 }
