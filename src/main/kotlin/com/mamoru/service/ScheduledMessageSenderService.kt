@@ -41,7 +41,7 @@ class ScheduledMessageService(
     fun checkAndRunDailyUpdate() {
         val today = LocalDate.now()
         val now = LocalTime.now()
-
+        logger.info("Daily update check: lastRunDate=$lastRunDate, now=$now, nextRunTime=$nextRunTime")
         if (lastRunDate != today && now.isAfter(nextRunTime)) {
             updateCharacterDescriptionsAndTags()
             lastRunDate = today
