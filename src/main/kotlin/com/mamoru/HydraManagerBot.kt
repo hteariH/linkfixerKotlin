@@ -33,7 +33,7 @@ open class HydraManagerBot(
     open val telegramClient = OkHttpTelegramClient(botToken)
 
     override fun consume(update: Update) {
-        logger.debug("Received update: {}", update)
+//        logger.debug("Received update: {}", update)
 
         // Handle managed bot creation event (Telegram API 9.6+)
         if (update.hasManagedBot()) {
