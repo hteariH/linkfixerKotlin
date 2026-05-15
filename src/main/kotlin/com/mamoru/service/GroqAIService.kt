@@ -122,6 +122,7 @@ class GroqAIService(
     override fun generateMemberTag(description: String): String {
         val system = "На основе описания персонажа придумай короткий, остроумный и подходящий титул (MemberTag) для этого пользователя в Telegram. Максимум 16 символов. Без использования Markdown или другого форматирования. Только текст. Пиши на русском языке. ТОЛЬКО ТЕГ, НИЧЕГО БОЛЬШЕ"
         val result = generateWithModels(listOf(SystemMessage(system), UserMessage("Описание персонажа:\n$description")), "Участник")
+        logger.info("Generated MemberTag for description: $description, result: $result")
         return result.replace(Regex("[*_`#]"), "").take(16).trim()
     }
 
