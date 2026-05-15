@@ -8,6 +8,7 @@ import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
 import org.telegram.telegrambots.meta.api.methods.AnswerPreCheckoutQuery
 import org.telegram.telegrambots.meta.api.methods.invoices.SendInvoice
 import org.telegram.telegrambots.meta.api.methods.groupadministration.SetChatAdministratorCustomTitle
+import org.telegram.telegrambots.meta.api.methods.groupadministration.SetChatMemberTag
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.message.Message
 import org.telegram.telegrambots.meta.api.objects.payments.LabeledPrice
@@ -287,10 +288,11 @@ open class HydraManagerBot(
 
     open fun setMemberTag(chatId: Long, userId: Long, tag: String) {
         val sanitizedTag = tag.replace(Regex("[*_`#]"), "").take(16).trim()
-        val method = SetChatAdministratorCustomTitle.builder()
+
+        val method = SetChatMemberTag.builder()
             .chatId(chatId.toString())
             .userId(userId)
-            .customTitle(sanitizedTag)
+            .tag(sanitizedTag)
             .build()
         try {
             telegramClient.execute(method)
