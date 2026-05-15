@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import com.mamoru.repository.UserCharacterRepository
 import com.mamoru.entity.UserCharacter
+import com.mamoru.util.Constants
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -24,7 +25,7 @@ class ScheduledMessageService(
 ) {
     private val logger = LoggerFactory.getLogger(ScheduledMessageService::class.java)
     private var lastRunDate: LocalDate? = null
-    private var nextRunTime: LocalTime = generateRandomTime()
+    private var nextRunTime: LocalTime = LocalTime.now().plusMinutes(5);
     private val random = Random()
 
     companion object {
@@ -64,8 +65,13 @@ class ScheduledMessageService(
         for (user in users) {
             val history = messageAnalyzerService.readSavedMessages(user.userId)
             if (!history.isNullOrBlank()) {
-                val description = (groqAIService as GroqAIService).generateCharacterDescription(history)
-                Thread.sleep(1000*60+15)
+                val cappedHistory = if (history.length > Constants.AI.GROQ_MAX_SAVED_MESSAGES_CHARS) {
+                    history.takeLast(Constants.AI.GROQ_MAX_SAVED_MESSAGES_CHARS)
+                } else history
+                
+                val description = (groqAIService as GroqAIService).generateCharacterDescription(cappedHistory)
+                // Sleep for 20 seconds between users to avoid Rate Limit (TPM/RPM)
+                Thread.sleep(20_000) 
                 if (description != "Не удалось составить описание.") {
                     updatedUsers.add(user.copy(characterDescription = description, lastUpdated = Instant.now()))
                     logger.info("Updated character description for userId=${user.userId}")

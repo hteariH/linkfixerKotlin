@@ -39,18 +39,16 @@ object Constants {
             listOf("gemini-3-flash-preview",DEFAULT_MODEL, "gemini-3.1-flash-lite-preview", BACKUP_MODEL)
 
         val GROQ_MODEL_CANDIDATES = listOf(
-            "groq/compound",
-            "openai/gpt-oss-120b",
-            "gemma2-9b-it"
+            "groq/compound"
         )
         val GROQ_VISION_MODEL_CANDIDATES = listOf(
-            "meta-llama/llama-4-scout-17b-16e-instruct",
-            "meta-llama/llama-4-maverick-17b-128e-instruct"
+            "llama-3.2-11b-vision-preview",
+            "llama-3.2-90b-vision-preview"
         )
 
         // Saved message history is capped to avoid exceeding Groq's token limits.
-        // ~4 000 chars ≈ 1 500–2 000 tokens for Cyrillic text.
-        const val GROQ_MAX_SAVED_MESSAGES_CHARS = 4_000
+        // ~3 000 chars ≈ 1 200–1 500 tokens for Cyrillic text.
+        const val GROQ_MAX_SAVED_MESSAGES_CHARS = 3_000
 
         // How many messages from the reply chain / recent history to include
         const val GROQ_MAX_REPLY_CHAIN_MESSAGES = 10
