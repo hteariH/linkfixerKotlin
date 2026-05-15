@@ -28,10 +28,6 @@ class ScheduledMessageService(
     private var nextRunTime: LocalTime = generateRandomTime()
     private val random = Random()
 
-    companion object {
-        const val TARGET_CHAT_ID = -1002590623139L
-    }
-
     private fun generateRandomTime(): LocalTime {
         val hour = Random().nextInt(24)
         val minute = Random().nextInt(60)
@@ -53,7 +49,7 @@ class ScheduledMessageService(
     }
 
     fun updateCharacterDescriptionsAndTags() {
-        logger.info("Starting daily character description update for chat $TARGET_CHAT_ID")
+        logger.info("Starting daily character description update for chats ${Constants.TARGET_CHAT_IDS}")
         
         val users = userCharacterRepository.findAll()
         if (users.isEmpty()) {
@@ -71,7 +67,8 @@ class ScheduledMessageService(
                 
                 val description = (groqAIService as GroqAIService).generateCharacterDescription(cappedHistory)
                 if (description != "Не удалось составить описание.") {
-                    updatedUsers.add(user.copy(characterDescription = description, lastUpdated = Instant.now()))
+                    val updated = user.copy(characterDescription = description, lastUpdated = Instant.now())
+                    updatedUsers.add(updated)
                     logger.info("Updated character description for userId=${user.userId}")
                 }
                 // Sleep for 60 seconds between users to avoid Rate Limit (TPM/RPM)
@@ -82,19 +79,31 @@ class ScheduledMessageService(
         if (updatedUsers.isNotEmpty()) {
             userCharacterRepository.saveAll(updatedUsers)
             
-            // Pick one random user from updated ones to change MemberTag
-            val luckyUser = updatedUsers.random()
-            val rawTag = groqAIService.generateMemberTag(luckyUser.characterDescription!!)
-            val newTag = rawTag.replace(Regex("[*_`#]"), "").take(16).trim()
-            if (newTag != "Участник") {
-                val oldTag = luckyUser.memberTag ?: "отсутствует"
-                bot.setMemberTag(TARGET_CHAT_ID, luckyUser.userId, newTag)
-                userCharacterRepository.save(luckyUser.copy(memberTag = newTag, lastUpdated = Instant.now()))
-                logger.info("Updated MemberTag for userId=${luckyUser.userId} to '$newTag'")
-                
-                val userName = luckyUser.lastKnownName ?: "Пользователь"
-                val notification = "У пользователя $userName изменен тег: '$oldTag' ➡️ '$newTag'"
-                bot.sendMessageToChat(TARGET_CHAT_ID, notification)
+            // For each target chat, pick one random user and change MemberTag
+            for (chatId in Constants.TARGET_CHAT_IDS) {
+                try {
+                    val usersInChat = updatedUsers.filter { bot.isUserInChat(chatId, it.userId) }
+                    if (usersInChat.isEmpty()) {
+                        logger.warn("No updated users found in chatId=$chatId")
+                        continue
+                    }
+                    
+                    val luckyUser = usersInChat.random()
+                    val rawTag = groqAIService.generateMemberTag(luckyUser.characterDescription!!)
+                    val newTag = rawTag.replace(Regex("[*_`#]"), "").take(16).trim()
+                    if (newTag != "Участник") {
+                        val oldTag = luckyUser.memberTag ?: "отсутствует"
+                        bot.setMemberTag(chatId, luckyUser.userId, newTag)
+                        userCharacterRepository.save(luckyUser.copy(memberTag = newTag, lastUpdated = Instant.now()))
+                        logger.info("Updated MemberTag for userId=${luckyUser.userId} in chatId=$chatId to '$newTag'")
+                        
+                        val userName = luckyUser.lastKnownName ?: "Пользователь"
+                        val notification = "У пользователя $userName изменен тег: '$oldTag' ➡️ '$newTag'"
+                        bot.sendMessageToChat(chatId, notification)
+                    }
+                } catch (e: Exception) {
+                    logger.error("Failed to update MemberTag for chat $chatId: ${e.message}")
+                }
             }
         }
 

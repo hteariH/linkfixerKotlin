@@ -2,6 +2,8 @@ package com.mamoru.util
 
 object Constants {
 
+    val TARGET_CHAT_IDS = listOf(-1002590623139L, -1002920837282L)
+
     object Command {
         const val TOGGLE_JOKE = "/togglejoke"
         const val TOGGLE_PICTURE_COMMENT = "/togglepicturecomment"

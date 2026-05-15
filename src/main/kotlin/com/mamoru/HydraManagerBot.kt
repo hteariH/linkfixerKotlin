@@ -301,4 +301,17 @@ open class HydraManagerBot(
             logger.error("Failed to set custom title for userId=$userId in chatId=$chatId: ${e.message}")
         }
     }
+
+    open fun isUserInChat(chatId: Long, userId: Long): Boolean {
+        val method = org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember.builder()
+            .chatId(chatId.toString())
+            .userId(userId)
+            .build()
+        return try {
+            val member = telegramClient.execute(method)
+            member.status in listOf("creator", "administrator", "member", "restricted")
+        } catch (e: Exception) {
+            false
+        }
+    }
 }

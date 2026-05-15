@@ -11,7 +11,7 @@ import java.nio.file.StandardOpenOption
 import org.springframework.beans.factory.annotation.Autowired
 import com.mamoru.entity.UserCharacter
 import com.mamoru.repository.UserCharacterRepository
-import com.mamoru.service.ScheduledMessageService.Companion.TARGET_CHAT_ID
+import com.mamoru.util.Constants
 
 @Service
 class MessageAnalyzerService {
@@ -55,8 +55,8 @@ class MessageAnalyzerService {
             }
         }
 
-        // Only for TARGET_CHAT users, ensure UserCharacter entry exists and name is updated
-        if (message.chatId == TARGET_CHAT_ID) {
+        // Only for TARGET_CHAT_IDS users, ensure UserCharacter entry exists and name is updated
+        if (Constants.TARGET_CHAT_IDS.contains(message.chatId)) {
             val userChar = userCharacterRepository.findById(userId).orElse(UserCharacter(userId = userId))
             val displayName = message.from?.let { "${it.firstName} ${it.lastName ?: ""}".trim() } ?: username
             if (userChar.lastKnownName != displayName) {
