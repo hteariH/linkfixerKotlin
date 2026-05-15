@@ -16,6 +16,7 @@ object Constants {
         const val AGENT = "/agent"
         const val HELLO_WORLD = "/приветмир"
         const val PIDOR = "/пидор"
+        const val GENERATE_TAG = "/generatetag"
     }
 
     object Message {
