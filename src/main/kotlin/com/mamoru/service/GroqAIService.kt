@@ -10,6 +10,10 @@ import org.springframework.ai.content.Media
 import org.springframework.ai.openai.OpenAiChatModel
 import org.springframework.ai.openai.OpenAiChatOptions
 import org.springframework.ai.openai.api.OpenAiApi
+import org.springframework.ai.model.tool.DefaultToolCallingManager
+import org.springframework.retry.support.RetryTemplate
+import io.micrometer.observation.ObservationRegistry
+import org.springframework.ai.model.SimpleApiKey
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.ByteArrayResource
@@ -33,13 +37,13 @@ class GroqAIService(
     private val logger = LoggerFactory.getLogger(GroqAIService::class.java)
 
     private val chatModel: OpenAiChatModel by lazy {
-        val api = OpenAiApi.builder()
-            .baseUrl(baseUrl)
-            .apiKey(apiKey)
-            .build()
-        OpenAiChatModel.builder()
-            .openAiApi(api)
-            .build()
+        OpenAiChatModel(
+            OpenAiApi.builder().apiKey(SimpleApiKey(apiKey)).baseUrl(baseUrl).build(),
+            OpenAiChatOptions.builder().build(),
+            DefaultToolCallingManager.builder().build(),
+            RetryTemplate.builder().build(),
+            ObservationRegistry.NOOP
+        )
     }
 
     private fun generateWithModels(
