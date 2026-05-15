@@ -120,10 +120,28 @@ class GroqAIService(
     }
 
     override fun generateMemberTag(description: String): String {
-        val system = "На основе описания персонажа придумай короткий, остроумный и подходящий титул (MemberTag) для этого пользователя в Telegram. Максимум 16 символов. Без использования Markdown или другого форматирования. Только текст. Пиши на русском языке. ТОЛЬКО ТЕГ, НИЧЕГО БОЛЬШЕ"
+        val system = """
+            На основе описания персонажа придумай ОДНО-ДВА СЛОВА (титул), которые лучше всего характеризуют этого пользователя в Telegram.
+            ПРАВИЛА:
+            1. Максимум 16 символов.
+            2. БЕЗ использования Markdown, без кавычек, без точек в конце.
+            3. ТОЛЬКО ТЕКСТ ТИТУЛА.
+            4. Пиши на русском языке.
+            5. НЕ ПИШИ НИЧЕГО, КРОМЕ САМОГО ТИТУЛА.
+            6. Если не можешь придумать, ответь просто: Участник
+        """.trimIndent()
         val result = generateWithModels(listOf(SystemMessage(system), UserMessage("Описание персонажа:\n$description")), "Участник")
-        logger.info("Generated MemberTag for description: $description, result: $result")
-        return result.replace(Regex("[*_`#]"), "").take(16).trim()
+        
+        // Очистка от возможного мусора, который AI всё равно может вернуть
+        val cleaned = result
+            .replace(Regex("(?i)Подходящий MemberTag[: ]*"), "")
+            .replace(Regex("(?i)Титул[: ]*"), "")
+            .replace(Regex("[*_`#\"']"), "")
+            .split("\n").firstOrNull { it.isNotBlank() } ?: "Участник"
+            
+        val finalTag = cleaned.trim().take(16).trim()
+        logger.info("Generated MemberTag. Input description length: ${description.length}, result: $result, finalTag: $finalTag")
+        return finalTag
     }
 
     private fun downloadImage(telegramClient: TelegramClient, fileId: String): ByteArray? = try {

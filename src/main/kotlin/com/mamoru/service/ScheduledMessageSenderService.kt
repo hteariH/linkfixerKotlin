@@ -89,8 +89,7 @@ class ScheduledMessageService(
                     }
                     
                     val luckyUser = usersInChat.random()
-                    val rawTag = groqAIService.generateMemberTag(luckyUser.characterDescription!!)
-                    val newTag = rawTag.replace(Regex("[*_`#]"), "").take(16).trim()
+                    val newTag = groqAIService.generateMemberTag(luckyUser.characterDescription!!)
                     if (newTag != "Участник") {
                         val oldTag = luckyUser.memberTag ?: "отсутствует"
                         bot.setMemberTag(chatId, luckyUser.userId, newTag)

@@ -67,6 +67,31 @@ open class HydraManagerBot(
         val message = update.message
         val chatId = message.chatId
 
+        // Handle commands and messages only if they are addressed to this specific bot
+        // This prevents multiple bots (primary + managed) in the same chat from reacting to the same command
+        if (message.hasText()) {
+            val text = message.text
+            if (text.startsWith("/")) {
+                // Primary bot handles commands.
+                // Managed bots (targetUserId != null) MUST NOT handle any commands.
+                logger.info("Received command: {}, targetUserId: {}", text, targetUserId)
+                if (targetUserId != null) {
+                    return
+                }
+
+                val botUsername = botName.removePrefix("@").lowercase()
+                val commandParts = text.split(" ", limit = 2)
+                val cmd = commandParts[0].lowercase()
+                
+                // If the command has a bot reference (e.g., /start@MyBot), it must match this bot
+                if (cmd.contains("@")) {
+                    if (!cmd.endsWith("@$botUsername")) {
+                        return
+                    }
+                }
+            }
+        }
+
         try {
             // Handle successful Stars payment — credit balance
             if (message.successfulPayment != null) {

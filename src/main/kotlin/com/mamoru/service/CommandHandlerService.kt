@@ -77,8 +77,7 @@ class CommandHandlerService(
             return CommandResult(isCommand = true, responseText = "Не удалось сгенерировать описание персонажа.")
         }
 
-        val rawTag = groqAIService.generateMemberTag(description)
-        val newTag = rawTag.replace(Regex("[*_`#]"), "").take(16).trim()
+        val newTag = groqAIService.generateMemberTag(description)
         
         if (newTag == "Участник") {
              return CommandResult(isCommand = true, responseText = "AI сгенерировал дефолтный тег 'Участник', попробуйте позже.")
