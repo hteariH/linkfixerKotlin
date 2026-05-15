@@ -243,4 +243,10 @@ class GeminiAIService(
             return ImpersonationResponse("I couldn't generate a response at this time.")
         }
     }
+
+    override fun generateMemberTag(description: String): String {
+        val system = "На основе описания персонажа придумай короткий, остроумный и подходящий титул (MemberTag) для этого пользователя в Telegram. Максимум 16 символов. Без использования Markdown или другого форматирования. Только текст. Пиши на русском языке."
+        val result = generateWithModels("$system\n\nОписание персонажа:\n$description", "Участник")
+        return result.replace(Regex("[*_`#]"), "").take(16).trim()
+    }
 }

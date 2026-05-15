@@ -119,9 +119,10 @@ class GroqAIService(
         return generateWithModels(listOf(SystemMessage(system), UserMessage("История сообщений:\n$history")), "Не удалось составить описание.")
     }
 
-    fun generateMemberTag(description: String): String {
-        val system = "На основе описания персонажа придумай короткий, остроумный и подходящий титул (MemberTag) для этого пользователя в Telegram. Только одно-два слова. Пиши на русском языке."
-        return generateWithModels(listOf(SystemMessage(system), UserMessage("Описание персонажа:\n$description")), "Участник")
+    override fun generateMemberTag(description: String): String {
+        val system = "На основе описания персонажа придумай короткий, остроумный и подходящий титул (MemberTag) для этого пользователя в Telegram. Максимум 16 символов. Без использования Markdown или другого форматирования. Только текст. Пиши на русском языке."
+        val result = generateWithModels(listOf(SystemMessage(system), UserMessage("Описание персонажа:\n$description")), "Участник")
+        return result.replace(Regex("[*_`#]"), "").take(16).trim()
     }
 
     private fun downloadImage(telegramClient: TelegramClient, fileId: String): ByteArray? = try {

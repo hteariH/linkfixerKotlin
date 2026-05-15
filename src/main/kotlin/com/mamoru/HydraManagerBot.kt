@@ -286,14 +286,15 @@ open class HydraManagerBot(
     }
 
     open fun setMemberTag(chatId: Long, userId: Long, tag: String) {
+        val sanitizedTag = tag.replace(Regex("[*_`#]"), "").take(16).trim()
         val method = SetChatAdministratorCustomTitle.builder()
             .chatId(chatId.toString())
             .userId(userId)
-            .customTitle(tag)
+            .customTitle(sanitizedTag)
             .build()
         try {
             telegramClient.execute(method)
-            logger.info("Set custom title '$tag' for userId=$userId in chatId=$chatId")
+            logger.info("Set custom title '$sanitizedTag' for userId=$userId in chatId=$chatId")
         } catch (e: Exception) {
             logger.error("Failed to set custom title for userId=$userId in chatId=$chatId: ${e.message}")
         }

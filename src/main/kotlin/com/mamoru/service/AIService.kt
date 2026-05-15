@@ -34,4 +34,6 @@ interface AIService {
         replyChain: List<CachedMessage> = emptyList(),
         recentMessages: List<CachedMessage> = emptyList()
     ): ImpersonationResponse
+
+    fun generateMemberTag(description: String): String
 }

@@ -52,7 +52,6 @@ class ScheduledMessageService(
 
     fun updateCharacterDescriptionsAndTags() {
         logger.info("Starting daily character description update for chat $TARGET_CHAT_ID")
-        val groq = groqAIService as GroqAIService
         
         val users = userCharacterRepository.findAll()
         if (users.isEmpty()) {
@@ -64,7 +63,8 @@ class ScheduledMessageService(
         for (user in users) {
             val history = messageAnalyzerService.readSavedMessages(user.userId)
             if (!history.isNullOrBlank()) {
-                val description = groq.generateCharacterDescription(history)
+                val description = (groqAIService as GroqAIService).generateCharacterDescription(history)
+                Thread.sleep(1000*60+15)
                 if (description != "Не удалось составить описание.") {
                     updatedUsers.add(user.copy(characterDescription = description, lastUpdated = Instant.now()))
                     logger.info("Updated character description for userId=${user.userId}")
@@ -77,7 +77,8 @@ class ScheduledMessageService(
             
             // Pick one random user from updated ones to change MemberTag
             val luckyUser = updatedUsers.random()
-            val newTag = groq.generateMemberTag(luckyUser.characterDescription!!)
+            val rawTag = groqAIService.generateMemberTag(luckyUser.characterDescription!!)
+            val newTag = rawTag.replace(Regex("[*_`#]"), "").take(16).trim()
             if (newTag != "Участник") {
                 val oldTag = luckyUser.memberTag ?: "отсутствует"
                 bot.setMemberTag(TARGET_CHAT_ID, luckyUser.userId, newTag)
