@@ -25,7 +25,7 @@ class ScheduledMessageService(
 ) {
     private val logger = LoggerFactory.getLogger(ScheduledMessageService::class.java)
     private var lastRunDate: LocalDate? = null
-    private var nextRunTime: LocalTime = LocalTime.now().plusMinutes(5);
+    private var nextRunTime: LocalTime = generateRandomTime()
     private val random = Random()
 
     companion object {
@@ -70,12 +70,12 @@ class ScheduledMessageService(
                 } else history
                 
                 val description = (groqAIService as GroqAIService).generateCharacterDescription(cappedHistory)
-                // Sleep for 20 seconds between users to avoid Rate Limit (TPM/RPM)
-                Thread.sleep(20_000) 
                 if (description != "Не удалось составить описание.") {
                     updatedUsers.add(user.copy(characterDescription = description, lastUpdated = Instant.now()))
                     logger.info("Updated character description for userId=${user.userId}")
                 }
+                // Sleep for 60 seconds between users to avoid Rate Limit (TPM/RPM)
+                Thread.sleep(60_000)
             }
         }
 
