@@ -34,6 +34,7 @@ class ScheduledMessageService(
     private fun generateRandomTime(): LocalTime {
         val hour = Random().nextInt(24)
         val minute = Random().nextInt(60)
+        logger.info("Generated random time: $hour:$minute")
         return LocalTime.of(hour, minute)
     }
 
