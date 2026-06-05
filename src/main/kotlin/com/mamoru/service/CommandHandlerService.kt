@@ -184,7 +184,8 @@ class CommandHandlerService(
         if (instruction.isEmpty()) {
             return CommandResult(isCommand = true, responseText = Constants.Message.AGENT_USAGE)
         }
-        if (userId == null || starBalanceService.getBalance(userId) < StarBalanceService.AGENT_COST) {
+        // Atomically charge up front so concurrent agent runs can't both pass the check.
+        if (userId == null || !starBalanceService.tryDeductStars(userId, StarBalanceService.AGENT_COST)) {
             val client = primaryBotHolder.client
             if (client != null) {
                 starBalanceService.sendStarInvoice(
@@ -199,9 +200,10 @@ class CommandHandlerService(
         }
         val error = gitHubDispatchService.dispatch(instruction, message.chatId)
         return if (error == null) {
-            starBalanceService.deductStars(userId, StarBalanceService.AGENT_COST)
             CommandResult(isCommand = true, responseText = Constants.Message.AGENT_DISPATCHED)
         } else {
+            // Dispatch failed — refund the stars we charged.
+            starBalanceService.addStars(userId, StarBalanceService.AGENT_COST)
             CommandResult(isCommand = true, responseText = error)
         }
     }
