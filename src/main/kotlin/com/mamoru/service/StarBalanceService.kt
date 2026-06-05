@@ -1,6 +1,5 @@
 package com.mamoru.service
 
-import com.mamoru.entity.UserBalance
 import com.mamoru.repository.UserBalanceRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -43,21 +42,29 @@ class StarBalanceService(
     fun getBalance(userId: Long): Int =
         userBalanceRepository.findById(userId).map { it.starBalance }.orElse(COST_PER_MESSAGE)
 
-    fun hasEnoughBalance(userId: Long): Boolean =
-        getBalance(userId) >= COST_PER_MESSAGE
-
-    fun deductStars(userId: Long, amount: Int) {
-        val current = userBalanceRepository.findById(userId).orElse(UserBalance(userId, COST_PER_MESSAGE))
-        val newBalance = maxOf(0, current.starBalance - amount)
-        userBalanceRepository.save(current.copy(starBalance = newBalance))
-        logger.info("Deducted $amount ⭐ from userId=$userId, balance: ${current.starBalance} → $newBalance")
+    /**
+     * Atomically deduct [amount] stars, but only if the balance is sufficient. The
+     * check-and-decrement is a single server-side operation (see
+     * [UserBalanceRepository.deductIfSufficient]), so there is no read-modify-write race
+     * and the balance can never go negative.
+     *
+     * @return true if the stars were deducted, false if the balance was insufficient.
+     */
+    fun tryDeductStars(userId: Long, amount: Int): Boolean {
+        val deducted = userBalanceRepository.deductIfSufficient(userId, amount, COST_PER_MESSAGE)
+        if (deducted) {
+            logger.info("Deducted $amount ⭐ from userId=$userId")
+        } else {
+            logger.info("Refused to deduct $amount ⭐ from userId=$userId: insufficient balance")
+        }
+        return deducted
     }
 
-    fun addStars(userId: Long, amount: Int) {
-        val current = userBalanceRepository.findById(userId).orElse(UserBalance(userId, COST_PER_MESSAGE))
-        val newBalance = current.starBalance + amount
-        userBalanceRepository.save(current.copy(starBalance = newBalance))
-        logger.info("Added $amount ⭐ to userId=$userId, balance: ${current.starBalance} → $newBalance")
+    /** Atomically credit [amount] stars and return the resulting balance. */
+    fun addStars(userId: Long, amount: Int): Int {
+        val newBalance = userBalanceRepository.incrementBalance(userId, amount, COST_PER_MESSAGE)
+        logger.info("Added $amount ⭐ to userId=$userId, new balance: $newBalance")
+        return newBalance
     }
 
     /**

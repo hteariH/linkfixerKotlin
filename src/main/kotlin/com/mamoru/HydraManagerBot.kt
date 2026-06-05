@@ -154,8 +154,7 @@ open class HydraManagerBot(
         val userId = message.from?.id ?: return
         if (payment.invoicePayload in StarBalanceService.INVOICE_PAYLOADS && payment.currency == "XTR") {
             val amount = payment.totalAmount
-            starBalanceService.addStars(userId, amount)
-            val newBalance = starBalanceService.getBalance(userId)
+            val newBalance = starBalanceService.addStars(userId, amount)
             sendMessageToChat(message.chatId,
                 "Баланс пополнен! Начислено $amount ⭐. Текущий баланс: $newBalance ⭐"
             )
@@ -184,16 +183,19 @@ open class HydraManagerBot(
     private fun processTextMessage(message: Message) {
         val userId = message.from?.id
 
-        // Balance gate: check before running expensive AI generation
-        if (userId != null && wouldBotTrigger(message)) {
-            if (!starBalanceService.hasEnoughBalance(userId)) {
-                val balance = starBalanceService.getBalance(userId)
+        // Charge up front (atomically) before running expensive AI generation, mirroring the
+        // agent flow. Refunded below if no response ends up being delivered.
+        val charged = if (userId != null && wouldBotTrigger(message)) {
+            if (!starBalanceService.tryDeductStars(userId, StarBalanceService.COST_PER_MESSAGE)) {
                 sendMessageToChat(message.chatId,
                     StarBalanceService.promptTopUp(StarBalanceService.COST_PER_MESSAGE, botName)
                 )
                 starBalanceService.sendStarInvoice(telegramClient, message.chatId, userId, message.messageId)
                 return
             }
+            true
+        } else {
+            false
         }
 
         val replyChain = if (targetUserId != null)
@@ -218,6 +220,7 @@ open class HydraManagerBot(
         val settings = chatSettingsManagementService.getChatSettings(message.chatId)
         val isManaged = targetUserId != null
 
+        var responseDelivered = false
         if (isManaged || settings.commentOnPictures) {
             result.mentionResponse?.let { responseText ->
                 val parts = splitAndTruncate(responseText)
@@ -229,6 +232,7 @@ open class HydraManagerBot(
                     val sendMessage = builder.build()
                     try {
                         val sent = telegramClient.execute(sendMessage)
+                        responseDelivered = true
                         if (isManaged) {
                             messageCacheService.cacheSentMessage(
                                 chatId = message.chatId, messageId = sent.messageId, text = part,
@@ -242,13 +246,13 @@ open class HydraManagerBot(
                         logger.error("Failed to send mention response: ${e.message}", e)
                     }
                 }
-
-                // Deduct stars only when a response was actually sent
-                if (userId != null) {
-                    starBalanceService.deductStars(userId, StarBalanceService.COST_PER_MESSAGE)
-                    logger.info("[{}] Deducted ${StarBalanceService.COST_PER_MESSAGE} ⭐ from userId=$userId", botName)
-                }
             }
+        }
+
+        // Refund the up-front charge if no response was actually delivered.
+        if (charged && userId != null && !responseDelivered) {
+            starBalanceService.addStars(userId, StarBalanceService.COST_PER_MESSAGE)
+            logger.info("[{}] Refunded ${StarBalanceService.COST_PER_MESSAGE} ⭐ to userId=$userId: no response delivered", botName)
         }
 
         if (settings.commentOnPictures) {
