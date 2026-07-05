@@ -35,7 +35,7 @@ class ScheduledMessageService(
         return LocalTime.of(hour, minute)
     }
 
-    @Scheduled(cron = "0 */15 * * * *") // Every 15 minutes
+    @Scheduled(cron = "-") // Every 15 minutes
     fun checkAndRunDailyUpdate() {
         val today = LocalDate.now()
         val now = LocalTime.now()
