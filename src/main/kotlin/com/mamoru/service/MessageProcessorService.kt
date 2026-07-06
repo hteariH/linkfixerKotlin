@@ -1,5 +1,6 @@
 package com.mamoru.service
 
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.objects.message.Message
 import org.telegram.telegrambots.meta.generics.TelegramClient
@@ -9,7 +10,7 @@ import kotlin.random.Random
 @Service
 class MessageProcessorService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
-    private val aiService: AIService,
+    @Qualifier("geminiAIService") private val aiService: AIService,
     private val messageCacheService: MessageCacheService,
     private val botRegistryService: BotRegistryService
 ) {
@@ -77,7 +78,7 @@ class MessageProcessorService(
         if (isMentioned && (isManaged || settings.commentOnPictures)) {
             val replyToMessage = message.replyToMessage
             val from = replyToMessage?.from?.userName
-            val replyText = replyToMessage?.text ?: replyToMessage?.caption
+            val replyText = message.quote?.text?: replyToMessage?.quote?.text?:  replyToMessage?.text ?: replyToMessage?.caption
             val replyPhoto = replyToMessage?.photo?.maxByOrNull { it.fileSize }
             val cleanText = text.replace("@$botUsername", "", ignoreCase = true).trim()
 
@@ -99,9 +100,9 @@ class MessageProcessorService(
                 )
                 logger.info("Generated mention response in chat $chatId")
             }
-        } else if (isManaged && !isMentioned) {
+        } else if (isManaged) {
             logger.debug("[{}] Skipping — not addressed (chat={} msgId={})", botUsername, chatId, message.messageId)
-        } else if (!isManaged && !isMentioned && settings.commentOnPictures &&
+        } else if (!isMentioned && settings.commentOnPictures &&
             containsZelenskyMention(text) && settings.sendRandomJoke && Random.nextBoolean()
         ) {
             result.jokeResponse = aiService.getRandomJoke(chatId)

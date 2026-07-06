@@ -1,20 +1,28 @@
 package com.mamoru.service
 
+import com.mamoru.HydraManagerBot
+import com.mamoru.repository.UserCharacterRepository
 import com.mamoru.util.Constants
 import org.springframework.context.annotation.Lazy
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.objects.message.Message
 import org.slf4j.LoggerFactory
+import java.time.Instant
 
 @Service
 class CommandHandlerService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
-    private val aiService: AIService,
+    @Qualifier("geminiAIService") private val aiService: AIService,
     private val starBalanceService: StarBalanceService,
     private val primaryBotHolder: PrimaryBotHolder,
     private val gitHubDispatchService: GitHubDispatchService,
     private val messageCacheService: MessageCacheService,
-    @Lazy private val managedBotService: ManagedBotService
+    private val userCharacterRepository: UserCharacterRepository,
+    private val messageAnalyzerService: MessageAnalyzerService,
+    @Qualifier("groqAIService") private val groqAIService: AIService,
+    @Lazy private val managedBotService: ManagedBotService,
+    @Lazy private val bot: HydraManagerBot
 ) {
     private val logger = LoggerFactory.getLogger(CommandHandlerService::class.java)
 
@@ -34,8 +42,68 @@ class CommandHandlerService(
             text.startsWith(Constants.Command.AGENT, ignoreCase = true) -> handleAgent(message)
             text.startsWith(Constants.Command.HELLO_WORLD, ignoreCase = true) -> CommandResult(isCommand = true, responseText = "привет мир!")
             text.startsWith(Constants.Command.PIDOR, ignoreCase = true) -> handlePidor(chatId)
+            text.startsWith(Constants.Command.GENERATE_TAG, ignoreCase = true) -> handleGenerateTag(message)
             else -> CommandResult(isCommand = false)
         }
+    }
+
+    private fun handleGenerateTag(message: Message): CommandResult {
+        val text = message.text
+        val args = parseArgs(text, Constants.Command.GENERATE_TAG)
+        if (args.isEmpty()) {
+            return CommandResult(isCommand = true, responseText = "Использование: ${Constants.Command.GENERATE_TAG} <userId или @username>")
+        }
+
+        val target = args[0]
+        val targetUserId = target.toLongOrNull() ?: messageAnalyzerService.resolveUserId(target)
+
+        if (targetUserId == null) {
+            return CommandResult(isCommand = true, responseText = "Не удалось найти пользователя: $target")
+        }
+
+        val userChar = userCharacterRepository.findById(targetUserId).orElse(null)
+        val history = messageAnalyzerService.readSavedMessages(targetUserId)
+
+        if (history.isNullOrBlank()) {
+            return CommandResult(isCommand = true, responseText = "История сообщений для пользователя $targetUserId пуста.")
+        }
+
+        val cappedHistory = if (history.length > Constants.AI.GROQ_MAX_SAVED_MESSAGES_CHARS) {
+            history.takeLast(Constants.AI.GROQ_MAX_SAVED_MESSAGES_CHARS)
+        } else history
+
+        val description = (groqAIService as GroqAIService).generateCharacterDescription(cappedHistory)
+        if (description == "Не удалось составить описание.") {
+            return CommandResult(isCommand = true, responseText = "Не удалось сгенерировать описание персонажа.")
+        }
+
+        val newTag = groqAIService.generateMemberTag(description)
+        
+        if (newTag == "Участник") {
+             return CommandResult(isCommand = true, responseText = "AI сгенерировал дефолтный тег 'Участник', попробуйте позже.")
+        }
+
+        // Apply tag in all target chats where user is present
+        var updatedInChats = 0
+        for (chatId in Constants.TARGET_CHAT_IDS) {
+            if (bot.isUserInChat(chatId, targetUserId)) {
+                bot.setMemberTag(chatId, targetUserId, newTag)
+                updatedInChats++
+            }
+        }
+
+        val newUserChar = (userChar ?: com.mamoru.entity.UserCharacter(userId = targetUserId))
+            .copy(characterDescription = description, memberTag = newTag, lastUpdated = Instant.now())
+        userCharacterRepository.save(newUserChar)
+
+        val targetName = newUserChar.lastKnownName ?: target
+        val response = if (updatedInChats > 0) {
+            "Тег для $targetName успешно изменен на '$newTag' в $updatedInChats чатах."
+        } else {
+            "Тег сгенерирован: '$newTag', но пользователь не найден ни в одном из целевых чатов."
+        }
+
+        return CommandResult(isCommand = true, responseText = response)
     }
 
     private fun handleSendInvoice(message: Message): CommandResult {

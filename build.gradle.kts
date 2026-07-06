@@ -1,9 +1,9 @@
 plugins {
-    kotlin("jvm") version "2.3.0"
-    kotlin("plugin.spring") version "2.3.0"
-    id("org.springframework.boot") version "4.0.0"
+    kotlin("jvm") version "2.1.10"
+    kotlin("plugin.spring") version "2.1.10"
+    id("org.springframework.boot") version "3.4.1"
     id("io.spring.dependency-management") version "1.1.7"
-    kotlin("plugin.noarg") version "2.3.0"
+    kotlin("plugin.noarg") version "2.1.10"
 }
 
 noArg {
@@ -39,7 +39,7 @@ dependencies {
     implementation("com.google.genai:google-genai:1.0.0")
 
     // Spring AI — core OpenAI-compatible client (no autoconfiguration, used for Groq)
-    implementation(platform("org.springframework.ai:spring-ai-bom:1.0.0"))
+    implementation(platform("org.springframework.ai:spring-ai-bom:1.1.6"))
     implementation("org.springframework.ai:spring-ai-openai")
 
     testImplementation(kotlin("test"))
@@ -51,5 +51,5 @@ tasks.test {
 }
 
 kotlin {
-    jvmToolchain(25)
+    jvmToolchain(21)
 }

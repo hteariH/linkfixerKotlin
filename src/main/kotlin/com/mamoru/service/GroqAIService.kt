@@ -10,19 +10,20 @@ import org.springframework.ai.content.Media
 import org.springframework.ai.openai.OpenAiChatModel
 import org.springframework.ai.openai.OpenAiChatOptions
 import org.springframework.ai.openai.api.OpenAiApi
+import org.springframework.ai.model.tool.DefaultToolCallingManager
+import org.springframework.retry.support.RetryTemplate
+import io.micrometer.observation.ObservationRegistry
+import org.springframework.ai.model.SimpleApiKey
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.io.ByteArrayResource
 import org.springframework.stereotype.Service
 import org.springframework.util.MimeTypeUtils
 import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.objects.photo.PhotoSize
 import org.telegram.telegrambots.meta.generics.TelegramClient
-import java.net.URL
 
-@Service
-@ConditionalOnProperty(name = ["ai.provider"], havingValue = "groq")
+@Service("groqAIService")
 class GroqAIService(
     private val chatSettingsManagementService: ChatSettingsManagementService,
     private val botRegistryService: BotRegistryService,
@@ -36,13 +37,13 @@ class GroqAIService(
     private val logger = LoggerFactory.getLogger(GroqAIService::class.java)
 
     private val chatModel: OpenAiChatModel by lazy {
-        val api = OpenAiApi.builder()
-            .baseUrl(baseUrl)
-            .apiKey(apiKey)
-            .build()
-        OpenAiChatModel.builder()
-            .openAiApi(api)
-            .build()
+        OpenAiChatModel(
+            OpenAiApi.builder().apiKey(SimpleApiKey(apiKey)).baseUrl(baseUrl).build(),
+            OpenAiChatOptions.builder().build(),
+            DefaultToolCallingManager.builder().build(),
+            RetryTemplate.builder().build(),
+            ObservationRegistry.NOOP
+        )
     }
 
     private fun generateWithModels(
@@ -111,6 +112,36 @@ class GroqAIService(
             Constants.AI.DEFAULT_JOKE_PROMPT
         }
         return generateWithModels(listOf(UserMessage(prompt)), Constants.AI.DEFAULT_JOKE_FAILURE_MESSAGE)
+    }
+
+    fun generateCharacterDescription(history: String): String {
+        val system = "Проанализируй историю сообщений пользователя и составь подробное описание его персонажа (личности, привычек, стиля общения, интересов). Пиши на русском языке. Будь краток, но содержателен."
+        return generateWithModels(listOf(SystemMessage(system), UserMessage("История сообщений:\n$history")), "Не удалось составить описание.")
+    }
+
+    override fun generateMemberTag(description: String): String {
+        val system = """
+            На основе описания персонажа придумай ОДНО-ДВА СЛОВА (титул), которые лучше всего характеризуют этого пользователя в Telegram.
+            ПРАВИЛА:
+            1. Максимум 16 символов.
+            2. БЕЗ использования Markdown, без кавычек, без точек в конце.
+            3. ТОЛЬКО ТЕКСТ ТИТУЛА.
+            4. Пиши на русском языке.
+            5. НЕ ПИШИ НИЧЕГО, КРОМЕ САМОГО ТИТУЛА.
+            6. Если не можешь придумать, ответь просто: Участник
+        """.trimIndent()
+        val result = generateWithModels(listOf(SystemMessage(system), UserMessage("Описание персонажа:\n$description")), "Участник")
+        
+        // Очистка от возможного мусора, который AI всё равно может вернуть
+        val cleaned = result
+            .replace(Regex("(?i)Подходящий MemberTag[: ]*"), "")
+            .replace(Regex("(?i)Титул[: ]*"), "")
+            .replace(Regex("[*_`#\"']"), "")
+            .split("\n").firstOrNull { it.isNotBlank() } ?: "Участник"
+            
+        val finalTag = cleaned.trim().take(16).trim()
+        logger.info("Generated MemberTag. Input description length: ${description.length}, result: $result, finalTag: $finalTag")
+        return finalTag
     }
 
     private fun downloadImage(telegramClient: TelegramClient, fileId: String): ByteArray? = try {

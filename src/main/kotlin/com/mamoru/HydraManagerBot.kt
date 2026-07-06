@@ -7,12 +7,13 @@ import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateC
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery
 import org.telegram.telegrambots.meta.api.methods.AnswerPreCheckoutQuery
 import org.telegram.telegrambots.meta.api.methods.invoices.SendInvoice
+import org.telegram.telegrambots.meta.api.methods.groupadministration.SetChatAdministratorCustomTitle
+import org.telegram.telegrambots.meta.api.methods.groupadministration.SetChatMemberTag
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.message.Message
 import org.telegram.telegrambots.meta.api.objects.payments.LabeledPrice
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException
-import org.telegram.telegrambots.meta.api.objects.managed.ManagedBotUpdated
 
 open class HydraManagerBot(
     private val botToken: String,
@@ -32,7 +33,7 @@ open class HydraManagerBot(
     open val telegramClient = OkHttpTelegramClient(botToken)
 
     override fun consume(update: Update) {
-        logger.debug("Received update: {}", update)
+//        logger.debug("Received update: {}", update)
 
         // Handle managed bot creation event (Telegram API 9.6+)
         if (update.hasManagedBot()) {
@@ -65,6 +66,31 @@ open class HydraManagerBot(
         if (!update.hasMessage()) return
         val message = update.message
         val chatId = message.chatId
+
+        // Handle commands and messages only if they are addressed to this specific bot
+        // This prevents multiple bots (primary + managed) in the same chat from reacting to the same command
+        if (message.hasText()) {
+            val text = message.text
+            if (text.startsWith("/")) {
+                // Primary bot handles commands.
+                // Managed bots (targetUserId != null) MUST NOT handle any commands.
+                logger.info("Received command: {}, targetUserId: {}", text, targetUserId)
+                if (targetUserId != null) {
+                    return
+                }
+
+                val botUsername = botName.removePrefix("@").lowercase()
+                val commandParts = text.split(" ", limit = 2)
+                val cmd = commandParts[0].lowercase()
+                
+                // If the command has a bot reference (e.g., /start@MyBot), it must match this bot
+                if (cmd.contains("@")) {
+                    if (!cmd.endsWith("@$botUsername")) {
+                        return
+                    }
+                }
+            }
+        }
 
         try {
             // Handle successful Stars payment — credit balance
@@ -286,6 +312,35 @@ open class HydraManagerBot(
             } catch (e: Exception) {
                 logger.error("Failed to send message to chat $chatId: ${e.message}", e)
             }
+        }
+    }
+
+    open fun setMemberTag(chatId: Long, userId: Long, tag: String) {
+        val sanitizedTag = tag.replace(Regex("[*_`#]"), "").take(16).trim()
+
+        val method = SetChatMemberTag.builder()
+            .chatId(chatId.toString())
+            .userId(userId)
+            .tag(sanitizedTag)
+            .build()
+        try {
+            telegramClient.execute(method)
+            logger.info("Set custom title '$sanitizedTag' for userId=$userId in chatId=$chatId")
+        } catch (e: Exception) {
+            logger.error("Failed to set custom title for userId=$userId in chatId=$chatId: ${e.message}")
+        }
+    }
+
+    open fun isUserInChat(chatId: Long, userId: Long): Boolean {
+        val method = org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember.builder()
+            .chatId(chatId.toString())
+            .userId(userId)
+            .build()
+        return try {
+            val member = telegramClient.execute(method)
+            member.status in listOf("creator", "administrator", "member", "restricted")
+        } catch (e: Exception) {
+            false
         }
     }
 }
